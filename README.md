@@ -84,8 +84,8 @@ When FlatLaf is available on the classpath, additional `Flat Light`, `Flat Dark`
 
 - Open multiple DBF files at the same time in a single window.
 - Start with one or more DBF files passed on the command line.
-- Use the close button on each tab to close the current file.
 - Right-click a tab to access `Close`, `Close others`, and `Close all`.
+- The `File` menu also provides `Close`, `Close others`, and `Close all`.
 - Tabs stay in a single scrollable row when there are many open files.
 
 ## Manual Build
