@@ -30,7 +30,7 @@ mkdir -p build/com/vd/dbfeditor/i18n
 cp src/com/vd/dbfeditor/i18n/*.properties build/com/vd/dbfeditor/i18n/
 
 echo "Creating runnable JAR..."
-jar --create --file "$JAR_PATH" --main-class com.vd.dbfeditor.DBFEditorUI -C "$BUILD_DIR" .
+jar --create --file "$JAR_PATH" --main-class com.vd.dbfeditor.app.DBFEditorUI -C "$BUILD_DIR" .
 
 echo "Compilation succeeded, created: $JAR_PATH"
 echo "Starting application..."

@@ -62,7 +62,7 @@ If you want to compile manually:
 javac -encoding UTF-8 -d build $(find src -name '*.java' -type f | sort)
 mkdir -p build/com/vd/dbfeditor/i18n
 cp src/com/vd/dbfeditor/i18n/*.properties build/com/vd/dbfeditor/i18n/
-jar --create --file dbfeditor.jar --main-class com.vd.dbfeditor.DBFEditorUI -C build .
+jar --create --file dbfeditor.jar --main-class com.vd.dbfeditor.app.DBFEditorUI -C build .
 ```
 
 Run the UI manually from the generated JAR:

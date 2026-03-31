@@ -1,4 +1,4 @@
-package com.vd.dbfeditor;
+package com.vd.dbfeditor.i18n;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,7 +17,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 
-final class Localization {
+public final class Localization {
     private static final String RESOURCE_DIR = "com/vd/dbfeditor/i18n";
     private static final String FILE_PREFIX = "messages_";
     private static final String FILE_SUFFIX = ".properties";
@@ -26,7 +26,7 @@ final class Localization {
     private final List<LanguageOption> availableLanguages;
     private BundleData currentBundle;
 
-    Localization(String preferredLanguageCode) {
+    public Localization(String preferredLanguageCode) {
         bundles = loadBundles();
         availableLanguages = bundles.entrySet().stream()
             .map(entry -> new LanguageOption(entry.getKey(), entry.getValue().displayName))
@@ -37,22 +37,22 @@ final class Localization {
         currentBundle = bundles.get(initialCode);
     }
 
-    List<LanguageOption> availableLanguages() {
+    public List<LanguageOption> availableLanguages() {
         return availableLanguages;
     }
 
-    String currentLanguageCode() {
+    public String currentLanguageCode() {
         return currentBundle.code;
     }
 
-    void setLanguage(String languageCode) {
+    public void setLanguage(String languageCode) {
         BundleData selected = bundles.get(languageCode);
         if (selected != null) {
             currentBundle = selected;
         }
     }
 
-    String text(String key, Object... args) {
+    public String text(String key, Object... args) {
         String pattern = currentBundle.messages.getProperty(key, '!' + key + '!');
         return args.length == 0 ? pattern : MessageFormat.format(pattern, args);
     }
@@ -136,7 +136,7 @@ final class Localization {
         }
     }
 
-    record LanguageOption(String code, String displayName) {
+    public record LanguageOption(String code, String displayName) {
     }
 
     private record BundleData(String code, String displayName, Properties messages) {

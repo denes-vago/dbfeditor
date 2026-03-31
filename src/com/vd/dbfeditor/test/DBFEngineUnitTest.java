@@ -1,6 +1,6 @@
 package com.vd.dbfeditor.test;
 
-import com.vd.dbfeditor.DBFEngine;
+import com.vd.dbfeditor.dbf.DBFEngine;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -70,7 +70,7 @@ public class DBFEngineUnitTest {
 
     // Writing and then reading a DBF should preserve schema and normalized field values.
     private static void testWriteReadRoundTripPreservesSchemaAndValues() throws Exception {
-        Charset charset = Charset.forName("Cp852");
+        Charset charset = Charset.forName("IBM852");
         List<DBFEngine.FieldDescriptor> fields = List.of(
             new DBFEngine.FieldDescriptor("NAME", 'C', 12, 0),
             new DBFEngine.FieldDescriptor("AMOUNT", 'N', 8, 2),
@@ -112,7 +112,7 @@ public class DBFEngineUnitTest {
 
     // Memo fields should be stored in the companion DBT file and read back as full text.
     private static void testMemoRoundTripPreservesLongText() throws Exception {
-        Charset charset = Charset.forName("Cp852");
+        Charset charset = Charset.forName("IBM852");
         List<DBFEngine.FieldDescriptor> fields = List.of(
             new DBFEngine.FieldDescriptor("TITLE", 'C', 12, 0),
             new DBFEngine.FieldDescriptor("MEMO", 'M', 10, 0)

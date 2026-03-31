@@ -1,6 +1,6 @@
 package com.vd.dbfeditor.test;
 
-import com.vd.dbfeditor.DBFEngine;
+import com.vd.dbfeditor.dbf.DBFEngine;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -39,7 +39,7 @@ public class DBFReadSmokeTest {
 
     private static void printUsage() {
         System.out.println("Használat: java -cp build com.vd.dbfeditor.DBFReadSmokeTest <fájl.dbf> [karakterkódolás]");
-        System.out.println("Példa:    java -cp build com.vd.dbfeditor.DBFReadSmokeTest ugyfelek.dbf Cp852");
+        System.out.println("Példa:    java -cp build com.vd.dbfeditor.DBFReadSmokeTest ugyfelek.dbf IBM852");
         System.out.println("Alapértelmezett karakterkódolás: " + DBFEngine.DEFAULT_CHARSET.displayName());
     }
 }

@@ -1,6 +1,6 @@
 package com.vd.dbfeditor.test;
 
-import com.vd.dbfeditor.DBFEngine;
+import com.vd.dbfeditor.dbf.DBFEngine;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 
