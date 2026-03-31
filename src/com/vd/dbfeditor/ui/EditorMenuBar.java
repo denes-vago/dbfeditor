@@ -39,6 +39,8 @@ public final class EditorMenuBar {
     private final LocalizedMenuAction addRecordAction;
     private final LocalizedMenuAction editRecordAction;
     private final LocalizedMenuAction deleteRecordAction;
+    private final LocalizedMenuAction searchAction;
+    private final LocalizedMenuAction replaceAction;
     private final LocalizedMenuAction editStructureAction;
     private final LocalizedMenuAction aboutAction;
 
@@ -55,6 +57,8 @@ public final class EditorMenuBar {
         Runnable addRecordHandler,
         Runnable editRecordHandler,
         Runnable deleteRecordHandler,
+        Runnable searchHandler,
+        Runnable replaceHandler,
         Runnable editStructureHandler,
         Runnable aboutHandler
     ) {
@@ -115,6 +119,16 @@ public final class EditorMenuBar {
         deleteRecordMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0));
         deleteRecordAction.setEnabled(false);
 
+        searchAction = new LocalizedMenuAction("menu.database.search", searchHandler);
+        JMenuItem searchMenuItem = new JMenuItem(searchAction);
+        searchMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F, shortcutMask));
+        searchAction.setEnabled(false);
+
+        replaceAction = new LocalizedMenuAction("menu.database.replace", replaceHandler);
+        JMenuItem replaceMenuItem = new JMenuItem(replaceAction);
+        replaceMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_R, shortcutMask));
+        replaceAction.setEnabled(false);
+
         editStructureAction = new LocalizedMenuAction("menu.database.edit_structure", editStructureHandler);
         JMenuItem editStructureMenuItem = new JMenuItem(editStructureAction);
         editStructureMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_E, shortcutMask | InputEvent.SHIFT_DOWN_MASK));
@@ -138,6 +152,8 @@ public final class EditorMenuBar {
         databaseMenu.add(addRecordMenuItem);
         databaseMenu.add(editRecordMenuItem);
         databaseMenu.add(deleteRecordMenuItem);
+        databaseMenu.add(searchMenuItem);
+        databaseMenu.add(replaceMenuItem);
         databaseMenu.addSeparator();
         databaseMenu.add(editStructureMenuItem);
         menuBar.add(databaseMenu);
@@ -168,6 +184,8 @@ public final class EditorMenuBar {
             addRecordAction,
             editRecordAction,
             deleteRecordAction,
+            searchAction,
+            replaceAction,
             editStructureAction
         );
     }
@@ -190,6 +208,8 @@ public final class EditorMenuBar {
         addRecordAction.updateText(localization::text);
         editRecordAction.updateText(localization::text);
         deleteRecordAction.updateText(localization::text);
+        searchAction.updateText(localization::text);
+        replaceAction.updateText(localization::text);
         editStructureAction.updateText(localization::text);
         aboutAction.updateText(localization::text);
     }

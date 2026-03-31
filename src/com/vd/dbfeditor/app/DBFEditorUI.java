@@ -13,7 +13,9 @@ import com.vd.dbfeditor.ui.LookAndFeelOption;
 import com.vd.dbfeditor.ui.LookAndFeelSupport;
 import com.vd.dbfeditor.ui.TabHeader;
 import com.vd.dbfeditor.ui.TableColumnSizer;
+import com.vd.dbfeditor.ui.dialog.ReplaceDialog;
 import com.vd.dbfeditor.ui.dialog.RecordEditorDialog;
+import com.vd.dbfeditor.ui.dialog.SearchDialog;
 import com.vd.dbfeditor.ui.dialog.SqlDialectDialog;
 import com.vd.dbfeditor.ui.dialog.StructureEditorDialog;
 import java.awt.BorderLayout;
@@ -50,6 +52,9 @@ import javax.swing.event.ChangeListener;
 public class DBFEditorUI extends JFrame {
     private static final String PREF_LANGUAGE = "language";
     private static final String PREF_LOOK_AND_FEEL = "lookAndFeel";
+    private static final String PREF_LAST_SEARCH_TEXT = "lastSearchText";
+    private static final String PREF_SEARCH_CASE_SENSITIVE = "searchCaseSensitive";
+    private static final String PREF_LAST_REPLACE_TEXT = "lastReplaceText";
     private static final Preferences PREFERENCES = Preferences.userNodeForPackage(DBFEditorUI.class);
 
     private final JComboBox<String> charsetCombo;
@@ -150,6 +155,8 @@ public class DBFEditorUI extends JFrame {
             this::addNewRecord,
             this::editSelectedRecord,
             this::deleteSelectedRecords,
+            this::searchCurrentDocument,
+            this::replaceInCurrentDocument,
             this::editDatabaseStructure,
             this::showAboutDialog
         );
@@ -465,6 +472,180 @@ public class DBFEditorUI extends JFrame {
         document.modified = true;
         updateTabTitle(document);
         documentUiController.updateWindowTitle(busy);
+    }
+
+    private void searchCurrentDocument() {
+        DocumentState document = currentDocument();
+        if (document == null || busy) {
+            return;
+        }
+
+        SearchDialog.SearchRequest request = SearchDialog.show(
+            this,
+            localization,
+            PREFERENCES.get(PREF_LAST_SEARCH_TEXT, ""),
+            PREFERENCES.getBoolean(PREF_SEARCH_CASE_SENSITIVE, false)
+        );
+        if (request == null) {
+            return;
+        }
+
+        String normalizedQuery = request.text();
+        if (normalizedQuery.isEmpty()) {
+            JOptionPane.showMessageDialog(
+                this,
+                localization.text("dialog.search.empty"),
+                localization.text("dialog.search.title"),
+                JOptionPane.INFORMATION_MESSAGE
+            );
+            return;
+        }
+
+        boolean caseSensitive = request.caseSensitive();
+        PREFERENCES.put(PREF_LAST_SEARCH_TEXT, normalizedQuery);
+        PREFERENCES.putBoolean(PREF_SEARCH_CASE_SENSITIVE, caseSensitive);
+
+        String effectiveQuery = caseSensitive ? normalizedQuery : normalizedQuery.toLowerCase();
+        for (int rowIndex = 0; rowIndex < document.dbf.records().size(); rowIndex++) {
+            List<String> row = document.dbf.records().get(rowIndex);
+            for (int columnIndex = 0; columnIndex < row.size(); columnIndex++) {
+                String value = row.get(columnIndex);
+                String effectiveValue = caseSensitive || value == null ? value : value.toLowerCase();
+                if (effectiveValue != null && effectiveValue.contains(effectiveQuery)) {
+                    int viewRow = document.table.convertRowIndexToView(rowIndex);
+                    int viewColumn = document.table.convertColumnIndexToView(columnIndex);
+                    document.table.changeSelection(viewRow, viewColumn, false, false);
+                    document.table.requestFocusInWindow();
+                    return;
+                }
+            }
+        }
+
+        JOptionPane.showMessageDialog(
+            this,
+            localization.text("dialog.search.not_found", normalizedQuery),
+            localization.text("dialog.search.title"),
+            JOptionPane.INFORMATION_MESSAGE
+        );
+    }
+
+    private void replaceInCurrentDocument() {
+        DocumentState document = currentDocument();
+        if (document == null || busy) {
+            return;
+        }
+
+        ReplaceDialog.ReplaceRequest request = ReplaceDialog.show(
+            this,
+            localization,
+            PREFERENCES.get(PREF_LAST_SEARCH_TEXT, ""),
+            PREFERENCES.get(PREF_LAST_REPLACE_TEXT, ""),
+            false
+        );
+        if (request == null) {
+            return;
+        }
+
+        String searchText = request.searchText();
+        if (searchText.isEmpty()) {
+            JOptionPane.showMessageDialog(
+                this,
+                localization.text("dialog.search.empty"),
+                localization.text("dialog.replace.title"),
+                JOptionPane.INFORMATION_MESSAGE
+            );
+            return;
+        }
+
+        PREFERENCES.put(PREF_LAST_SEARCH_TEXT, searchText);
+        PREFERENCES.put(PREF_LAST_REPLACE_TEXT, request.replaceText());
+        PREFERENCES.putBoolean(PREF_SEARCH_CASE_SENSITIVE, request.caseSensitive());
+
+        int replacements;
+        try {
+            replacements = replaceAllMatches(document, searchText, request.replaceText(), request.caseSensitive());
+        } catch (IllegalArgumentException e) {
+            JOptionPane.showMessageDialog(
+                this,
+                e.getMessage(),
+                localization.text("dialog.replace.title"),
+                JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }
+        if (replacements == 0) {
+            JOptionPane.showMessageDialog(
+                this,
+                localization.text("dialog.search.not_found", searchText),
+                localization.text("dialog.replace.title"),
+                JOptionPane.INFORMATION_MESSAGE
+            );
+            return;
+        }
+
+        document.tableModel.fireTableDataChanged();
+        TableColumnSizer.packColumns(document.table);
+        document.modified = true;
+        updateTabTitle(document);
+        documentUiController.updateWindowTitle(busy);
+
+        JOptionPane.showMessageDialog(
+            this,
+            localization.text("dialog.replace.success", replacements),
+            localization.text("dialog.replace.title"),
+            JOptionPane.INFORMATION_MESSAGE
+        );
+    }
+
+    private int replaceAllMatches(DocumentState document, String searchText, String replaceText, boolean caseSensitive) {
+        int replacements = 0;
+        String effectiveSearch = caseSensitive ? searchText : searchText.toLowerCase();
+
+        for (int rowIndex = 0; rowIndex < document.dbf.records().size(); rowIndex++) {
+            List<String> row = document.dbf.records().get(rowIndex);
+            for (int columnIndex = 0; columnIndex < row.size(); columnIndex++) {
+                String currentValue = row.get(columnIndex);
+                if (currentValue == null || currentValue.isEmpty()) {
+                    continue;
+                }
+
+                String replacedValue = replaceText(currentValue, searchText, replaceText, caseSensitive, effectiveSearch);
+                if (replacedValue.equals(currentValue)) {
+                    continue;
+                }
+
+                DBFEngine.FieldDescriptor field = document.dbf.fields().get(columnIndex);
+                String validationError = DBFEngine.validateValue(field, replacedValue, document.charset);
+                if (validationError != null) {
+                    throw new IllegalArgumentException(
+                        localization.text("dialog.replace.invalid_value", field.name(), validationError)
+                    );
+                }
+
+                row.set(columnIndex, replacedValue);
+                replacements++;
+            }
+        }
+
+        return replacements;
+    }
+
+    private String replaceText(String input, String searchText, String replaceText, boolean caseSensitive, String effectiveSearch) {
+        if (caseSensitive) {
+            return input.replace(searchText, replaceText);
+        }
+
+        String effectiveInput = input.toLowerCase();
+        StringBuilder result = new StringBuilder(input.length());
+        int start = 0;
+        int matchIndex;
+        while ((matchIndex = effectiveInput.indexOf(effectiveSearch, start)) >= 0) {
+            result.append(input, start, matchIndex);
+            result.append(replaceText);
+            start = matchIndex + searchText.length();
+        }
+        result.append(input.substring(start));
+        return result.toString();
     }
 
     private void editDatabaseStructure() {

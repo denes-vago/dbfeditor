@@ -9,6 +9,9 @@ The project currently focuses on:
 - reading and writing memo fields through companion DBT files
 - editing memo fields with a multiline editor
 - working with multiple open files in tabs
+- per-file character encoding selection
+- searching and search-and-replace inside the active table
+- exporting the current database to CSV or SQL
 - localized UI strings
 - lightweight smoke and unit tests for the DBF engine
 
