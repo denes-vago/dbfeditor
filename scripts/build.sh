@@ -5,6 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="${0:A:h}"
 PROJECT_DIR="${SCRIPT_DIR:h}"
 LAUNCH_DIR="$PWD"
+JAR_PATH="$PROJECT_DIR/dbfeditor.jar"
 typeset -a FILE_ARGS
 
 for arg in "$@"; do
@@ -28,5 +29,9 @@ javac -encoding UTF-8 -d build "${sources[@]}"
 mkdir -p build/com/vd/dbfeditor/i18n
 cp src/com/vd/dbfeditor/i18n/*.properties build/com/vd/dbfeditor/i18n/
 
-echo "Compilation succeeded, starting application..."
-exec java -cp "$BUILD_DIR" com.vd.dbfeditor.DBFEditorUI "${FILE_ARGS[@]}"
+echo "Creating runnable JAR..."
+jar --create --file "$JAR_PATH" --main-class com.vd.dbfeditor.DBFEditorUI -C "$BUILD_DIR" .
+
+echo "Compilation succeeded, created: $JAR_PATH"
+echo "Starting application..."
+exec java -jar "$JAR_PATH" "${FILE_ARGS[@]}"
