@@ -19,26 +19,23 @@ for arg in "$@"; do
 done
 
 cd "$PROJECT_DIR"
-mkdir -p build
-find build -type f -delete
-BUILD_DIR="$PROJECT_DIR/build"
-VERSION=$(sed -n 's/.*VERSION = "\\(.*\\)".*/\\1/p' src/com/vd/dbfeditor/app/AppVersion.java)
-MANIFEST_FILE="$BUILD_DIR/MANIFEST.MF"
+VERSION=$(sed -n 's/.*VERSION = "\(.*\)".*/\1/p' src/com/vd/dbfeditor/app/AppVersion.java)
+MAVEN_CMD=()
 
-echo "Starting compilation..."
-sources=($(find src -name '*.java' -type f | sort))
-javac -encoding UTF-8 -d build "${sources[@]}"
-mkdir -p build/com/vd/dbfeditor/i18n
-cp src/com/vd/dbfeditor/i18n/*.properties build/com/vd/dbfeditor/i18n/
-cat > "$MANIFEST_FILE" <<EOF
-Manifest-Version: 1.0
-Main-Class: com.vd.dbfeditor.app.DBFEditorUI
-Implementation-Version: $VERSION
+if [[ -x "$PROJECT_DIR/mvnw" ]]; then
+  MAVEN_CMD=("$PROJECT_DIR/mvnw")
+elif command -v mvn >/dev/null 2>&1; then
+  MAVEN_CMD=("mvn")
+else
+  echo "Maven is required to build this project."
+  echo "Install Maven or add a Maven wrapper to the repository."
+  exit 1
+fi
 
-EOF
-
-echo "Creating runnable JAR..."
-jar --create --file "$JAR_PATH" --manifest "$MANIFEST_FILE" -C "$BUILD_DIR" .
+echo "Starting Maven build..."
+rm -rf target
+"${MAVEN_CMD[@]}" -q -Drevision="$VERSION" clean package
+cp "$PROJECT_DIR/target/dbfeditor.jar" "$JAR_PATH"
 
 echo "Compilation succeeded, created: $JAR_PATH"
 echo "Starting application..."

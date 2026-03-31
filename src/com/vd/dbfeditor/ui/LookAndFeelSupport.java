@@ -1,7 +1,9 @@
 package com.vd.dbfeditor.ui;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import javax.swing.LookAndFeel;
 import javax.swing.UIManager;
 import javax.swing.UIManager.LookAndFeelInfo;
@@ -12,11 +14,12 @@ public final class LookAndFeelSupport {
     }
 
     public static List<LookAndFeelOption> availableOptions() {
-        List<LookAndFeelOption> options = new ArrayList<>();
+        Map<String, LookAndFeelOption> options = new LinkedHashMap<>();
+        addOptionalFlatLafOptions(options);
         for (LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
-            options.add(new LookAndFeelOption(info.getClassName(), info.getName(), info.getClassName()));
+            options.putIfAbsent(info.getClassName(), new LookAndFeelOption(info.getClassName(), info.getName(), info.getClassName()));
         }
-        return options;
+        return new ArrayList<>(options.values());
     }
 
     public static String currentClassName() {
@@ -39,6 +42,7 @@ public final class LookAndFeelSupport {
 
     public static void applyStartupLookAndFeel() {
         List<LookAndFeelOption> candidates = List.of(
+            new LookAndFeelOption("flatlaf-light", "Flat Light", "com.formdev.flatlaf.FlatLightLaf"),
             new LookAndFeelOption(
                 UIManager.getSystemLookAndFeelClassName(),
                 "System",
@@ -57,6 +61,28 @@ public final class LookAndFeelSupport {
             } catch (Exception e) {
                 // Try the next available look and feel.
             }
+        }
+    }
+
+    private static void addOptionalFlatLafOptions(Map<String, LookAndFeelOption> options) {
+        addOptionalOption(options, "flatlaf-light", "Flat Light", "com.formdev.flatlaf.FlatLightLaf");
+        addOptionalOption(options, "flatlaf-dark", "Flat Dark", "com.formdev.flatlaf.FlatDarkLaf");
+        addOptionalOption(options, "flatlaf-intellij", "Flat IntelliJ", "com.formdev.flatlaf.FlatIntelliJLaf");
+        addOptionalOption(options, "flatlaf-darcula", "Flat Darcula", "com.formdev.flatlaf.FlatDarculaLaf");
+    }
+
+    private static void addOptionalOption(Map<String, LookAndFeelOption> options, String id, String displayName, String className) {
+        if (classExists(className)) {
+            options.putIfAbsent(className, new LookAndFeelOption(id, displayName, className));
+        }
+    }
+
+    private static boolean classExists(String className) {
+        try {
+            Class.forName(className, false, LookAndFeelSupport.class.getClassLoader());
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
         }
     }
 }
