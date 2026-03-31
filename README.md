@@ -6,6 +6,8 @@ The project currently focuses on:
 
 - reading and writing DBF files safely
 - editing records and table structure
+- reading and writing memo fields through companion DBT files
+- editing memo fields with a multiline editor
 - working with multiple open files in tabs
 - localized UI strings
 - lightweight smoke and unit tests for the DBF engine
