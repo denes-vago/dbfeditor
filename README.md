@@ -104,10 +104,3 @@ Run the DBF write smoke test:
 ```bash
 java -cp build com.vd.dbfeditor.test.DBFWriteSmokeTest
 ```
-
-## Notes
-
-- DBF and DBT data files are ignored by git.
-- `dbfeditor.jar` is generated during the build process and is ignored by git.
-- The application default character encoding is `Cp852`.
-- The UI supports multiple languages via property files in `src/com/vd/dbfeditor/i18n`.
