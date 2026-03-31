@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.ButtonGroup;
 import javax.swing.JMenu;
@@ -24,12 +25,14 @@ public final class EditorMenuBar {
     private final JMenu fileMenu;
     private final JMenu editMenu;
     private final JMenu databaseMenu;
+    private final JMenu charsetMenu;
     private final JMenu settingsMenu;
     private final JMenu helpMenu;
     private final JMenu languageMenu;
     private final JMenu lookAndFeelMenu;
     private final JMenu exportMenu;
 
+    private final LocalizedMenuAction newDatabaseAction;
     private final LocalizedMenuAction openAction;
     private final LocalizedMenuAction closeAction;
     private final LocalizedMenuAction cutAction;
@@ -57,8 +60,10 @@ public final class EditorMenuBar {
 
     private final Map<String, JRadioButtonMenuItem> languageMenuItems = new LinkedHashMap<>();
     private final Map<String, JRadioButtonMenuItem> lookAndFeelMenuItems = new LinkedHashMap<>();
+    private final Map<String, JRadioButtonMenuItem> charsetMenuItems = new LinkedHashMap<>();
 
     public EditorMenuBar(
+        Runnable newDatabaseHandler,
         Runnable openHandler,
         Runnable closeHandler,
         Runnable cutHandler,
@@ -88,11 +93,16 @@ public final class EditorMenuBar {
         fileMenu = new JMenu();
         editMenu = new JMenu();
         databaseMenu = new JMenu();
+        charsetMenu = new JMenu();
         settingsMenu = new JMenu();
         helpMenu = new JMenu();
         languageMenu = new JMenu();
         lookAndFeelMenu = new JMenu();
         exportMenu = new JMenu();
+
+        newDatabaseAction = new LocalizedMenuAction("menu.file.new", newDatabaseHandler);
+        JMenuItem newDatabaseMenuItem = new JMenuItem(newDatabaseAction);
+        newDatabaseMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N, shortcutMask));
 
         openAction = new LocalizedMenuAction("menu.file.open", openHandler);
         JMenuItem openMenuItem = new JMenuItem(openAction);
@@ -159,7 +169,7 @@ public final class EditorMenuBar {
 
         addRecordAction = new LocalizedMenuAction("menu.database.add_record", addRecordHandler);
         JMenuItem addRecordMenuItem = new JMenuItem(addRecordAction);
-        addRecordMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N, shortcutMask));
+        addRecordMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N, shortcutMask | InputEvent.SHIFT_DOWN_MASK));
         addRecordAction.setEnabled(false);
 
         editRecordAction = new LocalizedMenuAction("menu.database.edit_record", editRecordHandler);
@@ -200,6 +210,7 @@ public final class EditorMenuBar {
         aboutAction = new LocalizedMenuAction("menu.help.about", aboutHandler);
         JMenuItem aboutMenuItem = new JMenuItem(aboutAction);
 
+        fileMenu.add(newDatabaseMenuItem);
         fileMenu.add(openMenuItem);
         fileMenu.add(closeMenuItem);
         fileMenu.add(saveMenuItem);
@@ -232,6 +243,8 @@ public final class EditorMenuBar {
         databaseMenu.add(addRecordMenuItem);
         databaseMenu.add(editRecordMenuItem);
         databaseMenu.add(deleteRecordMenuItem);
+        databaseMenu.addSeparator();
+        databaseMenu.add(charsetMenu);
         databaseMenu.addSeparator();
         databaseMenu.add(editStructureMenuItem);
         menuBar.add(databaseMenu);
@@ -277,11 +290,13 @@ public final class EditorMenuBar {
         fileMenu.setText(localization.text("menu.file"));
         editMenu.setText(localization.text("menu.edit"));
         databaseMenu.setText(localization.text("menu.database"));
+        charsetMenu.setText(localization.text("menu.database.charset"));
         settingsMenu.setText(localization.text("menu.settings"));
         helpMenu.setText(localization.text("menu.help"));
         languageMenu.setText(localization.text("menu.settings.language"));
         lookAndFeelMenu.setText(localization.text("menu.settings.look_and_feel"));
         exportMenu.setText(localization.text("menu.file.export"));
+        newDatabaseAction.updateText(localization::text);
         openAction.updateText(localization::text);
         closeAction.updateText(localization::text);
         undoAction.updateText(localization::text);
@@ -306,6 +321,34 @@ public final class EditorMenuBar {
         replaceAction.updateText(localization::text);
         editStructureAction.updateText(localization::text);
         aboutAction.updateText(localization::text);
+    }
+
+    public void rebuildCharsetMenu(String[] supportedDisplayNames, String currentSelection, Consumer<String> switchHandler) {
+        charsetMenu.removeAll();
+        charsetMenuItems.clear();
+
+        ButtonGroup buttonGroup = new ButtonGroup();
+        for (String displayName : supportedDisplayNames) {
+            JRadioButtonMenuItem item = new JRadioButtonMenuItem(displayName);
+            item.addActionListener(e -> switchHandler.accept(displayName));
+            item.setSelected(displayName.equals(currentSelection));
+            buttonGroup.add(item);
+            charsetMenu.add(item);
+            charsetMenuItems.put(displayName, item);
+        }
+    }
+
+    public void syncCharsetMenu(String currentSelection) {
+        for (Map.Entry<String, JRadioButtonMenuItem> entry : charsetMenuItems.entrySet()) {
+            entry.getValue().setSelected(entry.getKey().equals(currentSelection));
+        }
+    }
+
+    public void setCharsetMenuEnabled(boolean enabled) {
+        charsetMenu.setEnabled(enabled);
+        for (AbstractButton item : charsetMenuItems.values()) {
+            item.setEnabled(enabled);
+        }
     }
 
     public void rebuildLanguageMenu(Localization localization, Consumer<String> switchHandler) {

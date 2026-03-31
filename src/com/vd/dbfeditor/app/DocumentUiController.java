@@ -2,69 +2,81 @@ package com.vd.dbfeditor.app;
 
 import com.vd.dbfeditor.dbf.DBFEngine;
 import com.vd.dbfeditor.i18n.Localization;
-import com.vd.dbfeditor.ui.CharsetRegistry;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.swing.Action;
-import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 
 final class DocumentUiController {
     private final JFrame frame;
     private final Localization localization;
-    private final JComboBox<String> charsetCombo;
     private final JLabel statusBarLabel;
-    private final Supplier<DocumentState> currentDocumentSupplier;
-    private final Supplier<List<DocumentState>> documentsSupplier;
+    private final Supplier<DocumentModel> currentDocumentSupplier;
+    private final Supplier<List<DocumentModel>> documentsSupplier;
+    private final java.util.function.Function<DocumentModel, DocumentView> viewLookup;
+    private final Supplier<Charset> fallbackCharsetSupplier;
     private final Action openAction;
     private final List<Action> fileBoundActions;
+    private final Consumer<Boolean> charsetMenuEnabledSetter;
+    private final Consumer<Charset> charsetSelectionSyncer;
 
     DocumentUiController(
         JFrame frame,
         Localization localization,
-        JComboBox<String> charsetCombo,
         JLabel statusBarLabel,
-        Supplier<DocumentState> currentDocumentSupplier,
-        Supplier<List<DocumentState>> documentsSupplier,
+        Supplier<DocumentModel> currentDocumentSupplier,
+        Supplier<List<DocumentModel>> documentsSupplier,
+        java.util.function.Function<DocumentModel, DocumentView> viewLookup,
+        Supplier<Charset> fallbackCharsetSupplier,
         Action openAction,
-        List<Action> fileBoundActions
+        List<Action> fileBoundActions,
+        Consumer<Boolean> charsetMenuEnabledSetter,
+        Consumer<Charset> charsetSelectionSyncer
     ) {
         this.frame = frame;
         this.localization = localization;
-        this.charsetCombo = charsetCombo;
         this.statusBarLabel = statusBarLabel;
         this.currentDocumentSupplier = currentDocumentSupplier;
         this.documentsSupplier = documentsSupplier;
+        this.viewLookup = viewLookup;
+        this.fallbackCharsetSupplier = fallbackCharsetSupplier;
         this.openAction = openAction;
         this.fileBoundActions = fileBoundActions;
+        this.charsetMenuEnabledSetter = charsetMenuEnabledSetter;
+        this.charsetSelectionSyncer = charsetSelectionSyncer;
     }
 
     void refreshCurrentDocumentView(boolean busyState) {
-        DocumentState document = currentDocumentSupplier.get();
+        DocumentModel document = currentDocumentSupplier.get();
         if (document == null) {
-            syncCharsetCombo(DBFEngine.DEFAULT_CHARSET);
+            charsetSelectionSyncer.accept(fallbackCharsetSupplier.get());
         } else {
-            syncCharsetCombo(document.charset);
+            charsetSelectionSyncer.accept(document.charset);
         }
         applyBusyState(busyState, null);
     }
 
     void syncCharsetSelection(java.nio.charset.Charset charset) {
-        syncCharsetCombo(charset);
+        charsetSelectionSyncer.accept(charset);
     }
 
     void applyBusyState(boolean busyState, String message) {
         boolean hasFile = currentDocumentSupplier.get() != null;
         openAction.setEnabled(!busyState);
-        charsetCombo.setEnabled(!busyState);
+        charsetMenuEnabledSetter.accept(!busyState);
         for (Action action : fileBoundActions) {
             action.setEnabled(!busyState && hasFile);
         }
-        for (DocumentState document : documentsSupplier.get()) {
-            document.table.setEnabled(!busyState);
+        for (DocumentModel document : documentsSupplier.get()) {
+            DocumentView view = viewLookup.apply(document);
+            if (view != null) {
+                view.table.setEnabled(!busyState);
+            }
         }
         updateStatusBar(message);
         updateWindowTitle(busyState);
@@ -72,9 +84,14 @@ final class DocumentUiController {
 
     void updateWindowTitle(boolean busyState) {
         StringBuilder title = new StringBuilder(localization.text("app.title"));
-        DocumentState document = currentDocumentSupplier.get();
-        if (document != null && document.path != null) {
-            title.append(" - ").append(document.path.getFileName());
+        DocumentModel document = currentDocumentSupplier.get();
+        if (document != null) {
+            String documentName = document.path != null
+                ? document.path.getFileName().toString()
+                : document.displayName;
+            if (documentName != null && !documentName.isBlank()) {
+                title.append(" - ").append(documentName);
+            }
         }
         if (busyState) {
             title.append(localization.text("app.title.busy_suffix"));
@@ -90,15 +107,20 @@ final class DocumentUiController {
             return;
         }
 
-        DocumentState document = currentDocumentSupplier.get();
-        if (document == null || document.path == null || document.dbf == null) {
+        DocumentModel document = currentDocumentSupplier.get();
+        if (document == null || document.dbf == null) {
+            statusBarLabel.setText(localization.text("status.no_file"));
+            return;
+        }
+        DocumentView view = viewLookup.apply(document);
+        if (view == null) {
             statusBarLabel.setText(localization.text("status.no_file"));
             return;
         }
 
         long fileSize = 0L;
         try {
-            if (Files.exists(document.path)) {
+            if (document.path != null && Files.exists(document.path)) {
                 fileSize = Files.size(document.path);
             }
         } catch (IOException e) {
@@ -106,7 +128,7 @@ final class DocumentUiController {
         }
 
         int totalRows = document.dbf.records().size();
-        int visibleRows = document.table.getRowCount();
+        int visibleRows = view.table.getRowCount();
         String summaryKey = visibleRows == totalRows ? "status.summary" : "status.summary.filtered";
 
         statusBarLabel.setText(
@@ -114,28 +136,11 @@ final class DocumentUiController {
                 summaryKey,
                 String.format("%02X", document.dbf.version()),
                 fileSize,
+                document.charset.displayName(),
                 visibleRows,
                 totalRows
             )
         );
     }
 
-    private void syncCharsetCombo(java.nio.charset.Charset charset) {
-        ensureCharsetAvailable(charset);
-        charsetCombo.setSelectedItem(CharsetRegistry.displayName(charset));
-    }
-
-    private void ensureCharsetAvailable(java.nio.charset.Charset charset) {
-        if (charset == null) {
-            return;
-        }
-
-        String charsetName = CharsetRegistry.displayName(charset);
-        for (int i = 0; i < charsetCombo.getItemCount(); i++) {
-            if (charsetName.equals(charsetCombo.getItemAt(i))) {
-                return;
-            }
-        }
-        charsetCombo.addItem(charsetName);
-    }
 }

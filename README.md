@@ -11,6 +11,7 @@ The project currently focuses on:
 - reading and writing memo fields through companion DBT files
 - editing memo fields with a multiline editor
 - working with multiple open files in tabs
+- closing tabs from a tab context menu (`Close`, `Close others`, `Close all`)
 - per-file character encoding selection
 - searching, find next/previous, and search-and-replace inside the active table
 - sorting by clicking table headers
@@ -74,6 +75,14 @@ The script:
 - Filters are applied per open tab.
 - When a filter is active, saving and exporting use only the currently visible records.
 - Before saving or exporting a filtered view, the application warns that only matching records will be written.
+
+## Tab Features
+
+- Open multiple DBF files at the same time in a single window.
+- Start with one or more DBF files passed on the command line.
+- Use the close button on each tab to close the current file.
+- Right-click a tab to access `Close`, `Close others`, and `Close all`.
+- Tabs stay in a single scrollable row when there are many open files.
 
 ## Manual Compilation
 

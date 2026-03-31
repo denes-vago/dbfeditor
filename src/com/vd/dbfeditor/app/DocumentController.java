@@ -9,22 +9,39 @@ import javax.swing.JTabbedPane;
 
 final class DocumentController {
     private final JTabbedPane tabbedPane;
-    private final List<DocumentState> documents = new ArrayList<>();
+    private final List<DocumentModel> documents = new ArrayList<>();
+    private final List<DocumentView> documentViews = new ArrayList<>();
 
     DocumentController(JTabbedPane tabbedPane) {
         this.tabbedPane = tabbedPane;
     }
 
-    List<DocumentState> documents() {
+    List<DocumentModel> documents() {
         return documents;
     }
 
-    DocumentState currentDocument() {
+    DocumentModel currentDocument() {
         int index = tabbedPane.getSelectedIndex();
         if (index < 0 || index >= documents.size()) {
             return null;
         }
         return documents.get(index);
+    }
+
+    DocumentView currentView() {
+        int index = tabbedPane.getSelectedIndex();
+        if (index < 0 || index >= documentViews.size()) {
+            return null;
+        }
+        return documentViews.get(index);
+    }
+
+    DocumentView viewOf(DocumentModel document) {
+        int index = documents.indexOf(document);
+        if (index < 0 || index >= documentViews.size()) {
+            return null;
+        }
+        return documentViews.get(index);
     }
 
     int findDocumentIndex(Path path) {
@@ -39,44 +56,48 @@ final class DocumentController {
 
     void openOrReplaceDocument(
         Path path,
-        DocumentState newDocument,
-        Function<DocumentState, String> titleBuilder,
-        java.util.function.Consumer<DocumentState> existingUpdater
+        DocumentModel newDocument,
+        DocumentView newView,
+        Function<DocumentModel, String> titleBuilder,
+        java.util.function.BiConsumer<DocumentModel, DocumentView> existingUpdater
     ) {
         int existingIndex = findDocumentIndex(path);
         if (existingIndex >= 0) {
-            DocumentState existing = documents.get(existingIndex);
-            existingUpdater.accept(existing);
+            DocumentModel existing = documents.get(existingIndex);
+            DocumentView existingView = documentViews.get(existingIndex);
+            existingUpdater.accept(existing, existingView);
             tabbedPane.setSelectedIndex(existingIndex);
             return;
         }
 
         documents.add(newDocument);
-        tabbedPane.addTab(titleBuilder.apply(newDocument), newDocument.panel);
-        tabbedPane.setTabComponentAt(documents.size() - 1, newDocument.tabHeader);
+        documentViews.add(newView);
+        tabbedPane.addTab(titleBuilder.apply(newDocument), newView.panel);
+        tabbedPane.setTabComponentAt(documents.size() - 1, newView.tabHeader);
         tabbedPane.setSelectedIndex(documents.size() - 1);
     }
 
-    void updateTabTitle(DocumentState document, Function<DocumentState, String> titleBuilder) {
+    void updateTabTitle(DocumentModel document, Function<DocumentModel, String> titleBuilder) {
         int index = documents.indexOf(document);
         if (index >= 0) {
             String title = titleBuilder.apply(document);
             tabbedPane.setTitleAt(index, title);
-            document.tabHeader.setTitle(title);
+            documentViews.get(index).tabHeader.setTitle(title);
         }
     }
 
-    boolean closeDocumentAt(int index, Predicate<DocumentState> discardChangesChecker) {
+    boolean closeDocumentAt(int index, Predicate<DocumentModel> discardChangesChecker) {
         if (index < 0 || index >= documents.size()) {
             return false;
         }
 
-        DocumentState document = documents.get(index);
+        DocumentModel document = documents.get(index);
         if (!discardChangesChecker.test(document)) {
             return false;
         }
 
         documents.remove(index);
+        documentViews.remove(index);
         tabbedPane.removeTabAt(index);
         return true;
     }
