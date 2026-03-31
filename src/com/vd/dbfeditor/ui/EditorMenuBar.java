@@ -37,6 +37,8 @@ public final class EditorMenuBar {
     private final LocalizedMenuAction pasteAction;
     private final LocalizedMenuAction undoAction;
     private final LocalizedMenuAction redoAction;
+    private final LocalizedMenuAction filterAction;
+    private final LocalizedMenuAction clearFilterAction;
     private final LocalizedMenuAction saveAction;
     private final LocalizedMenuAction saveAsAction;
     private final LocalizedMenuAction exitAction;
@@ -47,6 +49,8 @@ public final class EditorMenuBar {
     private final LocalizedMenuAction editRecordAction;
     private final LocalizedMenuAction deleteRecordAction;
     private final LocalizedMenuAction searchAction;
+    private final LocalizedMenuAction searchNextAction;
+    private final LocalizedMenuAction searchPreviousAction;
     private final LocalizedMenuAction replaceAction;
     private final LocalizedMenuAction editStructureAction;
     private final LocalizedMenuAction aboutAction;
@@ -62,6 +66,8 @@ public final class EditorMenuBar {
         Runnable pasteHandler,
         Runnable undoHandler,
         Runnable redoHandler,
+        Runnable filterHandler,
+        Runnable clearFilterHandler,
         Runnable saveHandler,
         Runnable saveAsHandler,
         Runnable exitHandler,
@@ -70,6 +76,8 @@ public final class EditorMenuBar {
         Runnable editRecordHandler,
         Runnable deleteRecordHandler,
         Runnable searchHandler,
+        Runnable searchNextHandler,
+        Runnable searchPreviousHandler,
         Runnable replaceHandler,
         Runnable editStructureHandler,
         Runnable aboutHandler
@@ -102,6 +110,14 @@ public final class EditorMenuBar {
         redoAction = new LocalizedMenuAction("menu.edit.redo", redoHandler);
         JMenuItem redoMenuItem = new JMenuItem(redoAction);
         redoMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Z, shortcutMask | InputEvent.SHIFT_DOWN_MASK));
+
+        filterAction = new LocalizedMenuAction("menu.edit.filter", filterHandler);
+        JMenuItem filterMenuItem = new JMenuItem(filterAction);
+        filterMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_L, shortcutMask));
+
+        clearFilterAction = new LocalizedMenuAction("menu.edit.clear_filter", clearFilterHandler);
+        JMenuItem clearFilterMenuItem = new JMenuItem(clearFilterAction);
+        clearFilterMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_L, shortcutMask | InputEvent.SHIFT_DOWN_MASK));
 
         cutAction = new LocalizedMenuAction("menu.edit.cut", cutHandler);
         JMenuItem cutMenuItem = new JMenuItem(cutAction);
@@ -156,12 +172,22 @@ public final class EditorMenuBar {
         deleteRecordMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0));
         deleteRecordAction.setEnabled(false);
 
-        searchAction = new LocalizedMenuAction("menu.database.search", searchHandler);
+        searchAction = new LocalizedMenuAction("menu.edit.search", searchHandler);
         JMenuItem searchMenuItem = new JMenuItem(searchAction);
         searchMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F, shortcutMask));
         searchAction.setEnabled(false);
 
-        replaceAction = new LocalizedMenuAction("menu.database.replace", replaceHandler);
+        searchNextAction = new LocalizedMenuAction("menu.edit.search_next", searchNextHandler);
+        JMenuItem searchNextMenuItem = new JMenuItem(searchNextAction);
+        searchNextMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_G, shortcutMask));
+        searchNextAction.setEnabled(false);
+
+        searchPreviousAction = new LocalizedMenuAction("menu.edit.search_previous", searchPreviousHandler);
+        JMenuItem searchPreviousMenuItem = new JMenuItem(searchPreviousAction);
+        searchPreviousMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_G, shortcutMask | InputEvent.SHIFT_DOWN_MASK));
+        searchPreviousAction.setEnabled(false);
+
+        replaceAction = new LocalizedMenuAction("menu.edit.replace", replaceHandler);
         JMenuItem replaceMenuItem = new JMenuItem(replaceAction);
         replaceMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_R, shortcutMask));
         replaceAction.setEnabled(false);
@@ -190,7 +216,12 @@ public final class EditorMenuBar {
         editMenu.add(copyMenuItem);
         editMenu.add(pasteMenuItem);
         editMenu.addSeparator();
+        editMenu.add(filterMenuItem);
+        editMenu.add(clearFilterMenuItem);
+        editMenu.addSeparator();
         editMenu.add(searchMenuItem);
+        editMenu.add(searchNextMenuItem);
+        editMenu.add(searchPreviousMenuItem);
         editMenu.add(replaceMenuItem);
         menuBar.add(editMenu);
 
@@ -233,7 +264,11 @@ public final class EditorMenuBar {
             editRecordAction,
             deleteRecordAction,
             searchAction,
+            searchNextAction,
+            searchPreviousAction,
             replaceAction,
+            filterAction,
+            clearFilterAction,
             editStructureAction
         );
     }
@@ -251,6 +286,8 @@ public final class EditorMenuBar {
         closeAction.updateText(localization::text);
         undoAction.updateText(localization::text);
         redoAction.updateText(localization::text);
+        filterAction.updateText(localization::text);
+        clearFilterAction.updateText(localization::text);
         cutAction.updateText(localization::text);
         copyAction.updateText(localization::text);
         pasteAction.updateText(localization::text);
@@ -264,6 +301,8 @@ public final class EditorMenuBar {
         editRecordAction.updateText(localization::text);
         deleteRecordAction.updateText(localization::text);
         searchAction.updateText(localization::text);
+        searchNextAction.updateText(localization::text);
+        searchPreviousAction.updateText(localization::text);
         replaceAction.updateText(localization::text);
         editStructureAction.updateText(localization::text);
         aboutAction.updateText(localization::text);

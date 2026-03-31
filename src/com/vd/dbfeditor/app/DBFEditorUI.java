@@ -14,6 +14,7 @@ import com.vd.dbfeditor.ui.LookAndFeelSupport;
 import com.vd.dbfeditor.ui.TabHeader;
 import com.vd.dbfeditor.ui.TableColumnSizer;
 import com.vd.dbfeditor.ui.TextEditSupport;
+import com.vd.dbfeditor.ui.dialog.FilterDialog;
 import com.vd.dbfeditor.ui.dialog.ReplaceDialog;
 import com.vd.dbfeditor.ui.dialog.RecordEditorDialog;
 import com.vd.dbfeditor.ui.dialog.SearchDialog;
@@ -52,6 +53,7 @@ import javax.swing.UIManager;
 import javax.swing.WindowConstants;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import javax.swing.table.TableRowSorter;
 
 public class DBFEditorUI extends JFrame {
     private static final String PREF_LANGUAGE = "language";
@@ -157,6 +159,8 @@ public class DBFEditorUI extends JFrame {
             this::pasteCurrentSelection,
             this::undoCurrentFieldChange,
             this::redoCurrentFieldChange,
+            this::showFilterDialog,
+            this::clearCurrentFilter,
             this::saveCurrentFile,
             this::saveFileAs,
             this::exitApplication,
@@ -165,6 +169,8 @@ public class DBFEditorUI extends JFrame {
             this::editSelectedRecord,
             this::deleteSelectedRecords,
             this::searchCurrentDocument,
+            this::searchNextMatch,
+            this::searchPreviousMatch,
             this::replaceInCurrentDocument,
             this::editDatabaseStructure,
             this::showAboutDialog
@@ -538,32 +544,86 @@ public class DBFEditorUI extends JFrame {
         boolean caseSensitive = request.caseSensitive();
         PREFERENCES.put(PREF_LAST_FIND_TEXT, normalizedQuery);
         PREFERENCES.putBoolean(PREF_FIND_CASE_SENSITIVE, caseSensitive);
+        findMatch(document, normalizedQuery, caseSensitive, true);
+    }
 
-        String effectiveQuery = caseSensitive ? normalizedQuery : normalizedQuery.toLowerCase();
-        int rowCount = document.dbf.records().size();
-        int startRow = searchStartRow(document, rowCount);
-        for (int offset = 0; offset < rowCount; offset++) {
-            int rowIndex = (startRow + offset) % rowCount;
-            List<String> row = document.dbf.records().get(rowIndex);
-            for (int columnIndex = 0; columnIndex < row.size(); columnIndex++) {
-                String value = row.get(columnIndex);
-                String effectiveValue = caseSensitive || value == null ? value : value.toLowerCase();
-                if (effectiveValue != null && effectiveValue.contains(effectiveQuery)) {
-                    int viewRow = document.table.convertRowIndexToView(rowIndex);
-                    int viewColumn = document.table.convertColumnIndexToView(columnIndex);
-                    document.table.changeSelection(viewRow, viewColumn, false, false);
-                    document.table.requestFocusInWindow();
-                    return;
-                }
-            }
+    private void searchNextMatch() {
+        continueSearch(true);
+    }
+
+    private void searchPreviousMatch() {
+        continueSearch(false);
+    }
+
+    private void continueSearch(boolean forward) {
+        DocumentState document = currentDocument();
+        if (document == null || busy) {
+            return;
+        }
+
+        String searchText = PREFERENCES.get(PREF_LAST_FIND_TEXT, "").trim();
+        if (searchText.isEmpty()) {
+            searchCurrentDocument();
+            return;
+        }
+
+        findMatch(document, searchText, PREFERENCES.getBoolean(PREF_FIND_CASE_SENSITIVE, false), forward);
+    }
+
+    private void findMatch(DocumentState document, String query, boolean caseSensitive, boolean forward) {
+        MatchLocation match = locateMatch(document, query, caseSensitive, forward);
+        if (match != null) {
+            int viewRow = document.table.convertRowIndexToView(match.rowIndex());
+            int viewColumn = document.table.convertColumnIndexToView(match.columnIndex());
+            document.table.changeSelection(viewRow, viewColumn, false, false);
+            document.table.requestFocusInWindow();
+            return;
         }
 
         JOptionPane.showMessageDialog(
             this,
-            localization.text("dialog.search.not_found", normalizedQuery),
+            localization.text("dialog.search.not_found", query),
             localization.text("dialog.search.title"),
             JOptionPane.INFORMATION_MESSAGE
         );
+    }
+
+    private MatchLocation locateMatch(DocumentState document, String query, boolean caseSensitive, boolean forward) {
+        String effectiveQuery = caseSensitive ? query : query.toLowerCase();
+        int rowCount = document.dbf.records().size();
+        if (rowCount == 0) {
+            return null;
+        }
+
+        int startRow = searchStartRow(document, rowCount, forward);
+        for (int offset = 0; offset < rowCount; offset++) {
+            int rowIndex = forward
+                ? (startRow + offset) % rowCount
+                : Math.floorMod(startRow - offset, rowCount);
+            List<String> row = document.dbf.records().get(rowIndex);
+            if (forward) {
+                for (int columnIndex = 0; columnIndex < row.size(); columnIndex++) {
+                    if (matches(row.get(columnIndex), effectiveQuery, caseSensitive)) {
+                        return new MatchLocation(rowIndex, columnIndex);
+                    }
+                }
+            } else {
+                for (int columnIndex = row.size() - 1; columnIndex >= 0; columnIndex--) {
+                    if (matches(row.get(columnIndex), effectiveQuery, caseSensitive)) {
+                        return new MatchLocation(rowIndex, columnIndex);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private boolean matches(String value, String effectiveQuery, boolean caseSensitive) {
+        if (value == null) {
+            return false;
+        }
+        String effectiveValue = caseSensitive ? value : value.toLowerCase();
+        return effectiveValue.contains(effectiveQuery);
     }
 
     private void replaceInCurrentDocument() {
@@ -635,6 +695,66 @@ public class DBFEditorUI extends JFrame {
             localization.text("dialog.replace.title"),
             JOptionPane.INFORMATION_MESSAGE
         );
+    }
+
+    private void showFilterDialog() {
+        DocumentState document = currentDocument();
+        if (document == null || busy) {
+            return;
+        }
+
+        FilterDialog.FilterRequest request = FilterDialog.show(
+            this,
+            localization,
+            document.filterText,
+            document.filterCaseSensitive
+        );
+        if (request == null) {
+            return;
+        }
+
+        document.filterText = request.text();
+        document.filterCaseSensitive = request.caseSensitive();
+        applyDocumentFilter(document);
+    }
+
+    private void clearCurrentFilter() {
+        DocumentState document = currentDocument();
+        if (document == null || busy) {
+            return;
+        }
+
+        document.filterText = "";
+        document.filterCaseSensitive = false;
+        applyDocumentFilter(document);
+    }
+
+    private void applyDocumentFilter(DocumentState document) {
+        String filterText = document.filterText == null ? "" : document.filterText.trim();
+        if (filterText.isEmpty()) {
+            document.rowSorter.setRowFilter(null);
+            documentUiController.updateStatusBar(null);
+            return;
+        }
+
+        String effectiveFilter = document.filterCaseSensitive ? filterText : filterText.toLowerCase();
+        document.rowSorter.setRowFilter(new javax.swing.RowFilter<>() {
+            @Override
+            public boolean include(Entry<? extends DBFTableModel, ? extends Integer> entry) {
+                for (int columnIndex = 0; columnIndex < entry.getValueCount(); columnIndex++) {
+                    String value = entry.getStringValue(columnIndex);
+                    if (value == null) {
+                        continue;
+                    }
+                    String effectiveValue = document.filterCaseSensitive ? value : value.toLowerCase();
+                    if (effectiveValue.contains(effectiveFilter)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        });
+        documentUiController.updateStatusBar(null);
     }
 
     private boolean copySelectedCellToClipboard() {
@@ -731,7 +851,7 @@ public class DBFEditorUI extends JFrame {
         int replacements = 0;
         String effectiveSearch = caseSensitive ? searchText : searchText.toLowerCase();
         int rowCount = document.dbf.records().size();
-        int startRow = searchStartRow(document, rowCount);
+        int startRow = searchStartRow(document, rowCount, true);
 
         for (int offset = 0; offset < rowCount; offset++) {
             int rowIndex = (startRow + offset) % rowCount;
@@ -781,16 +901,18 @@ public class DBFEditorUI extends JFrame {
         return result.toString();
     }
 
-    private int searchStartRow(DocumentState document, int rowCount) {
+    private int searchStartRow(DocumentState document, int rowCount, boolean forward) {
         if (rowCount <= 0) {
             return 0;
         }
         int selectedViewRow = document.table.getSelectedRow();
         if (selectedViewRow < 0) {
-            return 0;
+            return forward ? 0 : rowCount - 1;
         }
         int selectedModelRow = document.table.convertRowIndexToModel(selectedViewRow);
-        return (selectedModelRow + 1) % rowCount;
+        return forward
+            ? (selectedModelRow + 1) % rowCount
+            : Math.floorMod(selectedModelRow - 1, rowCount);
     }
 
     private void undoCurrentFieldChange() {
@@ -844,6 +966,9 @@ public class DBFEditorUI extends JFrame {
     }
 
     private record SelectedCell(DocumentState document, int rowIndex, int columnIndex) {
+    }
+
+    private record MatchLocation(int rowIndex, int columnIndex) {
     }
 
     private void editDatabaseStructure() {
@@ -900,9 +1025,21 @@ public class DBFEditorUI extends JFrame {
         );
     }
 
+    private DBFEngine.DBFFile snapshotVisibleDbf(DocumentState document) {
+        List<List<String>> visibleRecords = new ArrayList<>(document.table.getRowCount());
+        for (int viewRow = 0; viewRow < document.table.getRowCount(); viewRow++) {
+            int modelRow = document.table.convertRowIndexToModel(viewRow);
+            visibleRecords.add(new ArrayList<>(document.dbf.records().get(modelRow)));
+        }
+        return rebuildDbf(document.dbf, document.dbf.fields(), visibleRecords);
+    }
+
     private void saveCurrentFile() {
         DocumentState document = currentDocument();
         if (busy || document == null || document.path == null) {
+            return;
+        }
+        if (!confirmFilteredWrite(document, localization.text("dialog.save.title"))) {
             return;
         }
         saveToPath(document, document.path);
@@ -915,6 +1052,9 @@ public class DBFEditorUI extends JFrame {
     private void saveFileAs() {
         DocumentState document = currentDocument();
         if (busy || document == null) {
+            return;
+        }
+        if (!confirmFilteredWrite(document, localization.text("dialog.save_as.title"))) {
             return;
         }
 
@@ -940,13 +1080,12 @@ public class DBFEditorUI extends JFrame {
                 return;
             }
         }
-
         saveToPath(document, selectedPath);
     }
 
     private void saveToPath(DocumentState document, Path path) {
         setBusy(true, localization.text("status.saving"));
-        DBFEngine.DBFFile snapshot = DocumentFileService.copyDbf(document.dbf);
+        DBFEngine.DBFFile snapshot = snapshotVisibleDbf(document);
         Charset charset = document.charset;
 
         new SwingWorker<DBFEngine.DBFFile, Void>() {
@@ -962,7 +1101,10 @@ public class DBFEditorUI extends JFrame {
                     document.dbf = DocumentFileService.copyDbf(saved);
                     document.path = path;
                     document.modified = false;
+                    document.undoStack.clear();
+                    document.redoStack.clear();
                     document.tableModel.setDbf(document.dbf);
+                    applyDocumentFilter(document);
                     TableColumnSizer.packColumns(document.table);
                     if (document == currentDocument()) {
                         documentUiController.syncCharsetSelection(document.charset);
@@ -994,6 +1136,9 @@ public class DBFEditorUI extends JFrame {
         if (busy || document == null) {
             return;
         }
+        if (!confirmFilteredWrite(document, localization.text("dialog.export.title"))) {
+            return;
+        }
 
         SqlDialect sqlDialect = null;
         if (format == ExportFormat.SQL) {
@@ -1023,13 +1168,34 @@ public class DBFEditorUI extends JFrame {
                 return;
             }
         }
-
         exportToPath(document, selectedPath, format, sqlDialect);
+    }
+
+    private boolean confirmFilteredWrite(DocumentState document, String dialogTitle) {
+        if (!hasActiveFilter(document)) {
+            return true;
+        }
+
+        int answer = JOptionPane.showConfirmDialog(
+            this,
+            localization.text("dialog.filtered_write.message", document.table.getRowCount(), document.dbf.records().size()),
+            dialogTitle,
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE
+        );
+        return answer == JOptionPane.YES_OPTION;
+    }
+
+    private boolean hasActiveFilter(DocumentState document) {
+        return document != null
+            && document.filterText != null
+            && !document.filterText.trim().isEmpty()
+            && document.table.getRowCount() != document.dbf.records().size();
     }
 
     private void exportToPath(DocumentState document, Path path, ExportFormat format, SqlDialect sqlDialect) {
         setBusy(true, localization.text("status.exporting"));
-        DBFEngine.DBFFile snapshot = DocumentFileService.copyDbf(document.dbf);
+        DBFEngine.DBFFile snapshot = snapshotVisibleDbf(document);
 
         new SwingWorker<Void, Void>() {
             @Override
@@ -1170,6 +1336,7 @@ public class DBFEditorUI extends JFrame {
                 existing.dbf = dbf;
                 existing.modified = false;
                 existing.tableModel.setDbf(existing.dbf);
+                applyDocumentFilter(existing);
                 TableColumnSizer.packColumns(existing.table);
             }
         );
@@ -1196,8 +1363,10 @@ public class DBFEditorUI extends JFrame {
         DBFTableModel model = new DBFTableModel();
         model.setDbf(dbf);
 
+        TableRowSorter<DBFTableModel> rowSorter = new TableRowSorter<>(model);
         JTable documentTable = new JTable(model);
         documentTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+        documentTable.setRowSorter(rowSorter);
         documentTable.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -1211,7 +1380,8 @@ public class DBFEditorUI extends JFrame {
         panel.add(new JScrollPane(documentTable), BorderLayout.CENTER);
 
         TabHeader tabHeader = new TabHeader(tabbedPane, this::closeDocumentAt, buildTabTitle(path, false));
-        DocumentState document = new DocumentState(path, charset, dbf, false, panel, documentTable, model, tabHeader);
+        DocumentState document = new DocumentState(path, charset, dbf, false, panel, documentTable, model, rowSorter, tabHeader);
+        applyDocumentFilter(document);
         TableColumnSizer.packColumns(document.table);
         return document;
     }

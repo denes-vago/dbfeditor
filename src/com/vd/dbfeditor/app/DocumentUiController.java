@@ -105,12 +105,17 @@ final class DocumentUiController {
             fileSize = 0L;
         }
 
+        int totalRows = document.dbf.records().size();
+        int visibleRows = document.table.getRowCount();
+        String summaryKey = visibleRows == totalRows ? "status.summary" : "status.summary.filtered";
+
         statusBarLabel.setText(
             localization.text(
-                "status.summary",
+                summaryKey,
                 String.format("%02X", document.dbf.version()),
                 fileSize,
-                document.dbf.records().size()
+                visibleRows,
+                totalRows
             )
         );
     }

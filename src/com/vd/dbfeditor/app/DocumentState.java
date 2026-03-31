@@ -9,6 +9,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Path;
 import javax.swing.JPanel;
 import javax.swing.JTable;
+import javax.swing.table.TableRowSorter;
 
 final class DocumentState {
     Path path;
@@ -18,9 +19,12 @@ final class DocumentState {
     final JPanel panel;
     final JTable table;
     final DBFTableModel tableModel;
+    final TableRowSorter<DBFTableModel> rowSorter;
     final TabHeader tabHeader;
     final Deque<FieldContentEdit> undoStack = new ArrayDeque<>();
     final Deque<FieldContentEdit> redoStack = new ArrayDeque<>();
+    String filterText = "";
+    boolean filterCaseSensitive;
 
     DocumentState(
         Path path,
@@ -30,6 +34,7 @@ final class DocumentState {
         JPanel panel,
         JTable table,
         DBFTableModel tableModel,
+        TableRowSorter<DBFTableModel> rowSorter,
         TabHeader tabHeader
     ) {
         this.path = path;
@@ -39,6 +44,7 @@ final class DocumentState {
         this.panel = panel;
         this.table = table;
         this.tableModel = tableModel;
+        this.rowSorter = rowSorter;
         this.tabHeader = tabHeader;
     }
 

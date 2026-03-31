@@ -12,7 +12,9 @@ The project currently focuses on:
 - editing memo fields with a multiline editor
 - working with multiple open files in tabs
 - per-file character encoding selection
-- searching and search-and-replace inside the active table
+- searching, find next/previous, and search-and-replace inside the active table
+- sorting by clicking table headers
+- filtering the active table with optional case-sensitive matching
 - editing selected field contents with clipboard operations and undo/redo
 - exporting the current database to CSV, Excel, or SQL
 - localized UI strings
@@ -63,6 +65,15 @@ The script:
 2. copies the localization files
 3. creates a runnable `dbfeditor.jar`
 4. starts the Swing application from the JAR
+
+## Table Features
+
+- Click a table header to sort by that column.
+- Use the `Edit` menu for filtering, searching, search and replace, undo/redo, and clipboard-based field editing.
+- Search supports continuing to the next or previous match.
+- Filters are applied per open tab.
+- When a filter is active, saving and exporting use only the currently visible records.
+- Before saving or exporting a filtered view, the application warns that only matching records will be written.
 
 ## Manual Compilation
 
