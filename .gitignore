@@ -2,3 +2,7 @@ build/
 *.class
 *.bak
 .DS_Store
+*.dbf
+*.DBF
+*.dbt
+*.DBT
