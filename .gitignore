@@ -6,3 +6,7 @@ build/
 *.DBF
 *.dbt
 *.DBT
+run_unit_tests.sh
+test_all_dbf.sh
+scripts/run_unit_tests.sh
+scripts/test_all_dbf.sh

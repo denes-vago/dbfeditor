@@ -3,4 +3,4 @@
 set -euo pipefail
 
 SCRIPT_DIR="${0:A:h}"
-exec "$SCRIPT_DIR/scripts/run_dbf_viewer.sh" "$@"
+exec "$SCRIPT_DIR/scripts/build.sh" "$@"
