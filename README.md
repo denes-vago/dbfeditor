@@ -16,11 +16,15 @@ The project currently focuses on:
 
 ```text
 src/com/vd/dbfeditor/
-  DBFEditorUI.java          Swing application
-  DBFEngine.java            DBF read/write/validation engine
-  Localization.java         Language bundle loader
-  i18n/                     UI translations
-  test/                     Test classes
+  action/                   Swing menu actions
+  app/                      Main application window and document controllers
+  dbf/                      DBF read/write/validation engine
+  export/                   CSV and SQL export logic
+  i18n/                     Localization loader and translation bundles
+  service/                  File-level application services
+  test/                     Executable unit and smoke tests
+  ui/                       Shared Swing UI components and helpers
+  ui/dialog/                Editor and export dialogs
 
 build.sh                    Build + run entry point
 scripts/build.sh            Actual build/run script used by the wrapper
