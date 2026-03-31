@@ -11,7 +11,6 @@ import com.vd.dbfeditor.ui.EditorMenuBar;
 import com.vd.dbfeditor.ui.FileChooserFactory;
 import com.vd.dbfeditor.ui.LookAndFeelOption;
 import com.vd.dbfeditor.ui.LookAndFeelSupport;
-import com.vd.dbfeditor.ui.TabHeader;
 import com.vd.dbfeditor.ui.TableColumnSizer;
 import com.vd.dbfeditor.ui.TextEditSupport;
 import com.vd.dbfeditor.ui.dialog.FilterDialog;
@@ -132,17 +131,6 @@ public class DBFEditorUI extends JFrame {
             public void mouseReleased(MouseEvent e) {
                 maybeShowTabPopup(e);
             }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                updateTabCloseButtons(-1);
-            }
-        });
-        tabbedPane.addMouseMotionListener(new MouseMotionAdapter() {
-            @Override
-            public void mouseMoved(MouseEvent e) {
-                updateTabCloseButtons(tabbedPane.indexAtLocation(e.getX(), e.getY()));
-            }
         });
         add(tabbedPane, BorderLayout.CENTER);
         documentController = new DocumentController(tabbedPane);
@@ -175,6 +163,8 @@ public class DBFEditorUI extends JFrame {
             this::createNewDatabase,
             this::openDbfFile,
             this::closeCurrentFile,
+            () -> closeOtherTabs(tabbedPane.getSelectedIndex()),
+            this::closeAllTabs,
             this::cutCurrentSelection,
             this::copyCurrentSelection,
             this::pasteCurrentSelection,
@@ -1017,16 +1007,6 @@ public class DBFEditorUI extends JFrame {
         popupMenu.show(invoker, x, y);
     }
 
-    private void updateTabCloseButtons(int hoveredIndex) {
-        List<DocumentModel> documents = documentController.documents();
-        for (int index = 0; index < documents.size(); index++) {
-            DocumentView view = viewFor(documents.get(index));
-            if (view != null) {
-                view.tabHeader.setCloseButtonVisible(index == hoveredIndex);
-            }
-        }
-    }
-
     private void saveFileAs() {
         DocumentModel document = currentDocument();
         if (busy || document == null) {
@@ -1324,25 +1304,7 @@ public class DBFEditorUI extends JFrame {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
         panel.add(new JScrollPane(documentTable), BorderLayout.CENTER);
 
-        TabHeader tabHeader = new TabHeader(
-            tabbedPane,
-            this::closeDocumentAt,
-            (header, event) -> {
-                int index = tabbedPane.indexOfTabComponent(header);
-                if (index < 0) {
-                    return;
-                }
-                tabbedPane.setSelectedIndex(index);
-                showTabPopup(header, event.getX(), event.getY(), index);
-            },
-            header -> {
-                int index = tabbedPane.indexOfTabComponent(header);
-                updateTabCloseButtons(index);
-            },
-            () -> updateTabCloseButtons(-1),
-            buildTabTitle(document)
-        );
-        DocumentView documentView = new DocumentView(panel, documentTable, model, rowSorter, tabHeader);
+        DocumentView documentView = new DocumentView(panel, documentTable, model, rowSorter);
         applyDocumentFilter(document, documentView);
         TableColumnSizer.packColumns(documentView.table);
         return documentView;

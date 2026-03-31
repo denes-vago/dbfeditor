@@ -35,6 +35,8 @@ public final class EditorMenuBar {
     private final LocalizedMenuAction newDatabaseAction;
     private final LocalizedMenuAction openAction;
     private final LocalizedMenuAction closeAction;
+    private final LocalizedMenuAction closeOthersAction;
+    private final LocalizedMenuAction closeAllAction;
     private final LocalizedMenuAction cutAction;
     private final LocalizedMenuAction copyAction;
     private final LocalizedMenuAction pasteAction;
@@ -66,6 +68,8 @@ public final class EditorMenuBar {
         Runnable newDatabaseHandler,
         Runnable openHandler,
         Runnable closeHandler,
+        Runnable closeOthersHandler,
+        Runnable closeAllHandler,
         Runnable cutHandler,
         Runnable copyHandler,
         Runnable pasteHandler,
@@ -112,6 +116,14 @@ public final class EditorMenuBar {
         JMenuItem closeMenuItem = new JMenuItem(closeAction);
         closeMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcutMask));
         closeAction.setEnabled(false);
+
+        closeOthersAction = new LocalizedMenuAction("popup.tab.close_others", closeOthersHandler);
+        JMenuItem closeOthersMenuItem = new JMenuItem(closeOthersAction);
+        closeOthersAction.setEnabled(false);
+
+        closeAllAction = new LocalizedMenuAction("popup.tab.close_all", closeAllHandler);
+        JMenuItem closeAllMenuItem = new JMenuItem(closeAllAction);
+        closeAllAction.setEnabled(false);
 
         undoAction = new LocalizedMenuAction("menu.edit.undo", undoHandler);
         JMenuItem undoMenuItem = new JMenuItem(undoAction);
@@ -213,6 +225,8 @@ public final class EditorMenuBar {
         fileMenu.add(newDatabaseMenuItem);
         fileMenu.add(openMenuItem);
         fileMenu.add(closeMenuItem);
+        fileMenu.add(closeOthersMenuItem);
+        fileMenu.add(closeAllMenuItem);
         fileMenu.add(saveMenuItem);
         fileMenu.add(saveAsMenuItem);
         fileMenu.add(exportMenu);
@@ -268,6 +282,8 @@ public final class EditorMenuBar {
     public List<Action> fileBoundActions() {
         return List.of(
             closeAction,
+            closeOthersAction,
+            closeAllAction,
             saveAction,
             saveAsAction,
             exportCsvAction,
@@ -299,6 +315,8 @@ public final class EditorMenuBar {
         newDatabaseAction.updateText(localization::text);
         openAction.updateText(localization::text);
         closeAction.updateText(localization::text);
+        closeOthersAction.updateText(localization::text);
+        closeAllAction.updateText(localization::text);
         undoAction.updateText(localization::text);
         redoAction.updateText(localization::text);
         filterAction.updateText(localization::text);

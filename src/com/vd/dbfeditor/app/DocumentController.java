@@ -73,7 +73,6 @@ final class DocumentController {
         documents.add(newDocument);
         documentViews.add(newView);
         tabbedPane.addTab(titleBuilder.apply(newDocument), newView.panel);
-        tabbedPane.setTabComponentAt(documents.size() - 1, newView.tabHeader);
         tabbedPane.setSelectedIndex(documents.size() - 1);
     }
 
@@ -82,7 +81,6 @@ final class DocumentController {
         if (index >= 0) {
             String title = titleBuilder.apply(document);
             tabbedPane.setTitleAt(index, title);
-            documentViews.get(index).tabHeader.setTitle(title);
         }
     }
 

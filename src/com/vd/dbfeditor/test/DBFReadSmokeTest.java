@@ -38,8 +38,8 @@ public class DBFReadSmokeTest {
     }
 
     private static void printUsage() {
-        System.out.println("Használat: java -cp build com.vd.dbfeditor.DBFReadSmokeTest <fájl.dbf> [karakterkódolás]");
-        System.out.println("Példa:    java -cp build com.vd.dbfeditor.DBFReadSmokeTest ugyfelek.dbf IBM852");
+        System.out.println("Használat: java -cp target/classes com.vd.dbfeditor.test.DBFReadSmokeTest <fájl.dbf> [karakterkódolás]");
+        System.out.println("Példa:    java -cp target/classes com.vd.dbfeditor.test.DBFReadSmokeTest ugyfelek.dbf IBM852");
         System.out.println("Alapértelmezett karakterkódolás: " + DBFEngine.DEFAULT_CHARSET.displayName());
     }
 }
