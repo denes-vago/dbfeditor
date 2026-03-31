@@ -19,6 +19,7 @@ public class DBFEngineUnitTest {
         testValidateValueRejectsTooManyDecimalPlaces();
         testValidateValueAcceptsLogicalAliases();
         testWriteReadRoundTripPreservesSchemaAndValues();
+        testMemoRoundTripPreservesLongText();
 
         System.out.println("OK - assertions=" + assertions);
     }
@@ -105,6 +106,44 @@ public class DBFEngineUnitTest {
             assertEquals("false", loaded.records().get(1).get(2), "Logical false aliases should round-trip.");
         } finally {
             Files.deleteIfExists(tempFile);
+            Files.deleteIfExists(Path.of(tempFile.toString().replaceFirst("\\.[^.]+$", "") + ".DBT"));
+        }
+    }
+
+    // Memo fields should be stored in the companion DBT file and read back as full text.
+    private static void testMemoRoundTripPreservesLongText() throws Exception {
+        Charset charset = Charset.forName("Cp852");
+        List<DBFEngine.FieldDescriptor> fields = List.of(
+            new DBFEngine.FieldDescriptor("TITLE", 'C', 12, 0),
+            new DBFEngine.FieldDescriptor("MEMO", 'M', 10, 0)
+        );
+
+        String memoText = "First line of memo\nSecond line of memo\nThird line of memo";
+        List<List<String>> records = new ArrayList<>();
+        records.add(new ArrayList<>(List.of("ENTRY", memoText)));
+
+        DBFEngine.DBFFile original = new DBFEngine.DBFFile(
+            0x83,
+            LocalDate.of(2024, 3, 15),
+            records.size(),
+            32 + fields.size() * 32 + 1,
+            1 + 12 + 10,
+            fields,
+            records
+        );
+
+        Path tempFile = Files.createTempFile("dbfengine-memo-", ".dbf");
+        Path tempMemoFile = Path.of(tempFile.toString().replaceFirst("\\.[^.]+$", "") + ".DBT");
+        try {
+            DBFEngine.write(tempFile, charset, original);
+            DBFEngine.DBFFile loaded = DBFEngine.read(tempFile, charset);
+
+            assertTrue(Files.exists(tempMemoFile), "Writing a memo field should create a DBT file.");
+            assertEquals("ENTRY", loaded.records().get(0).get(0).trim(), "The character field should round-trip.");
+            assertEquals(memoText, loaded.records().get(0).get(1), "The memo field should round-trip through the DBT file.");
+        } finally {
+            Files.deleteIfExists(tempFile);
+            Files.deleteIfExists(tempMemoFile);
         }
     }
 

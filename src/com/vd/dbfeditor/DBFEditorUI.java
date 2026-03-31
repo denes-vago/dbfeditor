@@ -43,6 +43,7 @@ import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.LookAndFeel;
@@ -61,6 +62,7 @@ import javax.swing.text.AbstractDocument;
 import javax.swing.text.AttributeSet;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.DocumentFilter;
+import javax.swing.text.JTextComponent;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
@@ -366,6 +368,7 @@ public class DBFEditorUI extends JFrame {
 
         JFileChooser chooser = new JFileChooser();
         configureDbfFileChooser(chooser);
+        chooser.setMultiSelectionEnabled(true);
         chooser.setDialogTitle(localization.text("dialog.open.title"));
         int result = chooser.showOpenDialog(this);
         if (result != JFileChooser.APPROVE_OPTION) {
@@ -377,8 +380,16 @@ public class DBFEditorUI extends JFrame {
             return;
         }
 
-        Path selectedPath = chooser.getSelectedFile().toPath();
-        loadDbfFiles(List.of(selectedPath), charset);
+        List<Path> selectedPaths = new ArrayList<>();
+        File[] selectedFiles = chooser.getSelectedFiles();
+        if (selectedFiles != null && selectedFiles.length > 0) {
+            for (File selectedFile : selectedFiles) {
+                selectedPaths.add(selectedFile.toPath());
+            }
+        } else if (chooser.getSelectedFile() != null) {
+            selectedPaths.add(chooser.getSelectedFile().toPath());
+        }
+        loadDbfFiles(selectedPaths, charset);
     }
 
     private Charset selectedCharset() {
@@ -727,10 +738,10 @@ public class DBFEditorUI extends JFrame {
         dialog.setLayout(new BorderLayout(8, 8));
 
         JPanel formPanel = new JPanel(new GridBagLayout());
-        List<JTextField> editors = new ArrayList<>();
+        List<JTextComponent> editors = new ArrayList<>();
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(4, 4, 4, 4);
-        gbc.anchor = GridBagConstraints.WEST;
+        gbc.anchor = GridBagConstraints.NORTHWEST;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0;
 
@@ -739,13 +750,26 @@ public class DBFEditorUI extends JFrame {
             gbc.gridx = 0;
             gbc.gridy = i;
             gbc.weightx = 0;
+            gbc.weighty = 0;
             formPanel.add(new JLabel(field.name() + " (" + field.type() + ", " + field.length() + ")"), gbc);
 
-            JTextField editor = new JTextField(values.get(i), Math.min(Math.max(field.length(), 12), 40));
-            editors.add(editor);
             gbc.gridx = 1;
             gbc.weightx = 1.0;
-            formPanel.add(editor, gbc);
+            if (field.type() == 'M') {
+                JTextArea editor = new JTextArea(values.get(i), 5, 40);
+                editor.setLineWrap(true);
+                editor.setWrapStyleWord(true);
+                editors.add(editor);
+                gbc.fill = GridBagConstraints.BOTH;
+                gbc.weighty = 1.0;
+                formPanel.add(new JScrollPane(editor), gbc);
+            } else {
+                JTextField editor = new JTextField(values.get(i), Math.min(Math.max(field.length(), 12), 40));
+                editors.add(editor);
+                gbc.fill = GridBagConstraints.HORIZONTAL;
+                gbc.weighty = 0;
+                formPanel.add(editor, gbc);
+            }
         }
 
         dialog.add(new JScrollPane(formPanel), BorderLayout.CENTER);
@@ -793,13 +817,13 @@ public class DBFEditorUI extends JFrame {
             }
         };
 
-        for (JTextField editor : editors) {
+        for (JTextComponent editor : editors) {
             editor.getDocument().addDocumentListener(listener);
         }
 
         okButton.addActionListener(e -> {
             List<String> updated = new ArrayList<>(editors.size());
-            for (JTextField editor : editors) {
+            for (JTextComponent editor : editors) {
                 updated.add(editor.getText());
             }
             resultHolder.set(updated);

@@ -1,6 +1,7 @@
 package com.vd.dbfeditor;
 
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -26,6 +27,7 @@ public final class DBFEngine {
     private static final int RESERVED_HEADER_BYTES = 20;
     private static final int FIELD_DESCRIPTOR_LENGTH = 32;
     private static final int FIELD_TERMINATOR_LENGTH = 1;
+    private static final int DBT_BLOCK_SIZE = 512;
     private static final int MIN_HEADER_LENGTH = 32 + FIELD_TERMINATOR_LENGTH;
     private static final int MAX_FIELD_COUNT = 1024;
     private static final int MAX_RECORD_LENGTH = 64 * 1024;
@@ -102,6 +104,7 @@ public final class DBFEngine {
             }
 
             ensureRecordCountFits(path, fileSize, headerLength, recordLength, recordCount);
+            MemoReader memoReader = MemoReader.open(path, charset);
 
             file.seek(headerLength);
             int initialCapacity = (int) Math.min(recordCount, 10_000L);
@@ -124,7 +127,7 @@ public final class DBFEngine {
                 List<String> row = new ArrayList<>(fields.size());
                 int offset = 0;
                 for (FieldDescriptor field : fields) {
-                    row.add(formatValue(field, recordBuffer, offset, charset));
+                    row.add(formatValue(field, recordBuffer, offset, charset, memoReader));
                     offset += field.length();
                 }
                 records.add(row);
@@ -147,19 +150,27 @@ public final class DBFEngine {
 
         String fileName = absolutePath.getFileName() != null ? absolutePath.getFileName().toString() : "dbf";
         Path tempFile = Files.createTempFile(parent, fileName + ".", ".tmp");
+        Path tempMemoFile = hasMemoFields(dbf) ? Files.createTempFile(parent, fileName + ".", ".dbt.tmp") : null;
 
         try {
-            writeDirect(tempFile, charset, dbf);
+            writeDirect(tempFile, tempMemoFile, charset, dbf);
             moveAtomically(tempFile, absolutePath);
+            if (tempMemoFile != null) {
+                moveAtomically(tempMemoFile, memoPathFor(absolutePath));
+            }
         } catch (IOException e) {
             Files.deleteIfExists(tempFile);
+            if (tempMemoFile != null) {
+                Files.deleteIfExists(tempMemoFile);
+            }
             throw e;
         }
     }
 
-    private static void writeDirect(Path path, Charset charset, DBFFile dbf) throws IOException {
+    private static void writeDirect(Path path, Path memoPath, Charset charset, DBFFile dbf) throws IOException {
         int headerLength = calculateHeaderLength(dbf.fields());
         int recordLength = calculateRecordLength(dbf.fields());
+        MemoWriter memoWriter = memoPath != null ? new MemoWriter(memoPath, charset) : null;
         try (OutputStream output = new BufferedOutputStream(Files.newOutputStream(path))) {
             LocalDate updateDate = LocalDate.now();
             writeUnsignedByte(output, dbf.version());
@@ -184,11 +195,14 @@ public final class DBFEngine {
                 for (int i = 0; i < dbf.fields().size(); i++) {
                     FieldDescriptor field = dbf.fields().get(i);
                     String value = i < row.size() ? row.get(i) : "";
-                    writeFieldValue(output, field, value, charset);
+                    writeFieldValue(output, field, value, charset, memoWriter);
                 }
             }
 
             writeUnsignedByte(output, 0x1A);
+            if (memoWriter != null) {
+                memoWriter.finish();
+            }
         }
     }
 
@@ -294,7 +308,7 @@ public final class DBFEngine {
         }
     }
 
-    private static String formatValue(FieldDescriptor field, byte[] bytes, int offset, Charset charset) {
+    private static String formatValue(FieldDescriptor field, byte[] bytes, int offset, Charset charset, MemoReader memoReader) {
         String raw = new String(bytes, offset, field.length(), charset);
         String trimmed = trimRight(raw).trim();
         if (trimmed.isEmpty()) {
@@ -304,6 +318,7 @@ public final class DBFEngine {
         return switch (field.type()) {
             case 'D' -> formatDate(trimmed);
             case 'L' -> formatLogical(trimmed);
+            case 'M' -> memoReader != null ? memoReader.read(trimmed) : trimRight(raw);
             default -> trimRight(raw);
         };
     }
@@ -330,6 +345,7 @@ public final class DBFEngine {
         return switch (field.type()) {
             case 'D' -> validateDateValue(field, safeValue.trim());
             case 'L' -> validateLogicalValue(safeValue.trim());
+            case 'M' -> null;
             case 'N', 'F' -> validateNumericValue(field, safeValue.trim(), charset);
             default -> validateCharacterValue(field, safeValue, charset);
         };
@@ -426,8 +442,10 @@ public final class DBFEngine {
         }
     }
 
-    private static void writeFieldValue(OutputStream output, FieldDescriptor field, String value, Charset charset) throws IOException {
-        String normalized = normalizeForStorage(field, value);
+    private static void writeFieldValue(OutputStream output, FieldDescriptor field, String value, Charset charset, MemoWriter memoWriter) throws IOException {
+        String normalized = field.type() == 'M'
+            ? (memoWriter != null ? memoWriter.store(value == null ? "" : value) : "")
+            : normalizeForStorage(field, value);
         if (normalized == null) {
             throw new IOException("A(z) " + field.name() + " mező értéke érvénytelen.");
         }
@@ -456,9 +474,133 @@ public final class DBFEngine {
         return switch (field.type()) {
             case 'D' -> safeValue.trim().isEmpty() ? "" : normalizeDateForStorage(safeValue.trim());
             case 'L' -> normalizeLogicalForStorage(safeValue.trim());
+            case 'M' -> safeValue;
             case 'N', 'F' -> formatNumericForStorage(field, safeValue.trim());
             default -> safeValue;
         };
+    }
+
+    private static boolean hasMemoFields(DBFFile dbf) {
+        for (FieldDescriptor field : dbf.fields()) {
+            if (field.type() == 'M') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static Path memoPathFor(Path dbfPath) {
+        String fileName = dbfPath.getFileName() != null ? dbfPath.getFileName().toString() : "memo";
+        int dot = fileName.lastIndexOf('.');
+        String baseName = dot >= 0 ? fileName.substring(0, dot) : fileName;
+        return dbfPath.resolveSibling(baseName + ".DBT");
+    }
+
+    private static final class MemoReader {
+        private final byte[] data;
+        private final Charset charset;
+
+        private MemoReader(byte[] data, Charset charset) {
+            this.data = data;
+            this.charset = charset;
+        }
+
+        static MemoReader open(Path dbfPath, Charset charset) throws IOException {
+            Path memoPath = memoPathFor(dbfPath);
+            if (!Files.exists(memoPath)) {
+                return null;
+            }
+            return new MemoReader(Files.readAllBytes(memoPath), charset);
+        }
+
+        String read(String pointerText) {
+            if (data == null) {
+                return pointerText;
+            }
+            try {
+                int blockNumber = Integer.parseInt(pointerText.trim());
+                if (blockNumber <= 0) {
+                    return "";
+                }
+                long start = (long) blockNumber * DBT_BLOCK_SIZE;
+                if (start >= data.length) {
+                    return pointerText;
+                }
+                ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                int position = (int) start;
+                while (position < data.length) {
+                    int read = Math.min(DBT_BLOCK_SIZE, data.length - position);
+                    int end = memoEnd(data, position, read);
+                    if (end >= 0) {
+                        buffer.write(data, position, end);
+                        break;
+                    }
+                    buffer.write(data, position, read);
+                    if (read < DBT_BLOCK_SIZE) {
+                        break;
+                    }
+                    position += read;
+                }
+                return trimRight(new String(buffer.toByteArray(), charset)).replace("\r\n", "\n");
+            } catch (Exception e) {
+                return pointerText;
+            }
+        }
+
+        private int memoEnd(byte[] data, int offset, int length) {
+            for (int i = 0; i < length; i++) {
+                if (data[offset + i] == 0x1A) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+    }
+
+    private static final class MemoWriter {
+        private final OutputStream output;
+        private final Charset charset;
+        private int nextBlock = 1;
+
+        private MemoWriter(Path path, Charset charset) throws IOException {
+            this.output = new BufferedOutputStream(Files.newOutputStream(path));
+            this.charset = charset;
+            byte[] header = new byte[DBT_BLOCK_SIZE];
+            writeLittleEndianInt(header, 0, nextBlock);
+            output.write(header);
+        }
+
+        String store(String value) throws IOException {
+            String safeValue = value == null ? "" : value;
+            if (safeValue.isEmpty()) {
+                return "";
+            }
+
+            int startBlock = nextBlock;
+            byte[] data = safeValue.replace("\n", System.lineSeparator()).getBytes(charset);
+            byte[] terminated = new byte[data.length + 1];
+            System.arraycopy(data, 0, terminated, 0, data.length);
+            terminated[data.length] = 0x1A;
+
+            int blocks = Math.max(1, (terminated.length + DBT_BLOCK_SIZE - 1) / DBT_BLOCK_SIZE);
+            byte[] padded = new byte[blocks * DBT_BLOCK_SIZE];
+            System.arraycopy(terminated, 0, padded, 0, terminated.length);
+            output.write(padded);
+            nextBlock += blocks;
+            return String.format(Locale.ROOT, "%10d", startBlock);
+        }
+
+        void finish() throws IOException {
+            output.flush();
+            output.close();
+        }
+    }
+
+    private static void writeLittleEndianInt(byte[] buffer, int offset, int value) {
+        buffer[offset] = (byte) (value & 0xFF);
+        buffer[offset + 1] = (byte) ((value >>> 8) & 0xFF);
+        buffer[offset + 2] = (byte) ((value >>> 16) & 0xFF);
+        buffer[offset + 3] = (byte) ((value >>> 24) & 0xFF);
     }
 
     private static String normalizeDateForStorage(String value) {
