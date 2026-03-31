@@ -220,7 +220,7 @@ public class DBFEditorUI extends JFrame {
     private void showAboutDialog() {
         JOptionPane.showMessageDialog(
             this,
-            localization.text("dialog.about.message"),
+            localization.text("dialog.about.message", AppVersion.VERSION),
             localization.text("dialog.about.title"),
             JOptionPane.INFORMATION_MESSAGE
         );

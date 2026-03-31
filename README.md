@@ -2,6 +2,8 @@
 
 A desktop Java application for opening, editing, and saving classic DBF files with a Swing user interface.
 
+Current version: `1.0.0`
+
 The project currently focuses on:
 
 - reading and writing DBF files safely
@@ -114,3 +116,7 @@ Run the DBF write smoke test:
 ```bash
 java -cp build com.vd.dbfeditor.test.DBFWriteSmokeTest
 ```
+
+## Warning
+
+This software is provided AS-IS, without warranties of any kind, express or implied. Use it at your own risk, and always keep backups of your DBF and DBT files before editing or exporting data.

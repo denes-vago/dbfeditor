@@ -22,15 +22,23 @@ cd "$PROJECT_DIR"
 mkdir -p build
 find build -type f -delete
 BUILD_DIR="$PROJECT_DIR/build"
+VERSION=$(sed -n 's/.*VERSION = "\\(.*\\)".*/\\1/p' src/com/vd/dbfeditor/app/AppVersion.java)
+MANIFEST_FILE="$BUILD_DIR/MANIFEST.MF"
 
 echo "Starting compilation..."
 sources=($(find src -name '*.java' -type f | sort))
 javac -encoding UTF-8 -d build "${sources[@]}"
 mkdir -p build/com/vd/dbfeditor/i18n
 cp src/com/vd/dbfeditor/i18n/*.properties build/com/vd/dbfeditor/i18n/
+cat > "$MANIFEST_FILE" <<EOF
+Manifest-Version: 1.0
+Main-Class: com.vd.dbfeditor.app.DBFEditorUI
+Implementation-Version: $VERSION
+
+EOF
 
 echo "Creating runnable JAR..."
-jar --create --file "$JAR_PATH" --main-class com.vd.dbfeditor.app.DBFEditorUI -C "$BUILD_DIR" .
+jar --create --file "$JAR_PATH" --manifest "$MANIFEST_FILE" -C "$BUILD_DIR" .
 
 echo "Compilation succeeded, created: $JAR_PATH"
 echo "Starting application..."
