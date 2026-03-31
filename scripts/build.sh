@@ -22,11 +22,11 @@ mkdir -p build
 find build -type f -delete
 BUILD_DIR="$PROJECT_DIR/build"
 
-echo "Forditas indul..."
+echo "Starting compilation..."
 sources=($(find src -name '*.java' -type f | sort))
 javac -encoding UTF-8 -d build "${sources[@]}"
 mkdir -p build/com/vd/dbfeditor/i18n
 cp src/com/vd/dbfeditor/i18n/*.properties build/com/vd/dbfeditor/i18n/
 
-echo "A forditas sikeres, program inditasa..."
+echo "Compilation succeeded, starting application..."
 exec java -cp "$BUILD_DIR" com.vd.dbfeditor.DBFEditorUI "${FILE_ARGS[@]}"
