@@ -3,7 +3,7 @@ package com.vd.dbfeditor;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.URI;
+import java.net.JarURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -76,15 +76,29 @@ final class Localization {
         List<String> languageCodes = new ArrayList<>();
         try {
             URL resourceUrl = Localization.class.getClassLoader().getResource(RESOURCE_DIR);
-            if (resourceUrl != null && "file".equals(resourceUrl.getProtocol())) {
-                Path resourcePath = Path.of(resourceUrl.toURI());
-                try (var stream = Files.list(resourcePath)) {
-                    stream
-                        .map(path -> path.getFileName().toString())
-                        .filter(name -> name.startsWith(FILE_PREFIX) && name.endsWith(FILE_SUFFIX))
-                        .map(name -> name.substring(FILE_PREFIX.length(), name.length() - FILE_SUFFIX.length()))
-                        .sorted()
-                        .forEach(languageCodes::add);
+            if (resourceUrl != null) {
+                if ("file".equals(resourceUrl.getProtocol())) {
+                    Path resourcePath = Path.of(resourceUrl.toURI());
+                    try (var stream = Files.list(resourcePath)) {
+                        stream
+                            .map(path -> path.getFileName().toString())
+                            .filter(name -> name.startsWith(FILE_PREFIX) && name.endsWith(FILE_SUFFIX))
+                            .map(name -> name.substring(FILE_PREFIX.length(), name.length() - FILE_SUFFIX.length()))
+                            .sorted()
+                            .forEach(languageCodes::add);
+                    }
+                } else if ("jar".equals(resourceUrl.getProtocol())) {
+                    JarURLConnection connection = (JarURLConnection) resourceUrl.openConnection();
+                    try (var jarFile = connection.getJarFile()) {
+                        jarFile.stream()
+                            .map(entry -> entry.getName())
+                            .filter(name -> name.startsWith(RESOURCE_DIR + "/"))
+                            .map(name -> name.substring(name.lastIndexOf('/') + 1))
+                            .filter(name -> name.startsWith(FILE_PREFIX) && name.endsWith(FILE_SUFFIX))
+                            .map(name -> name.substring(FILE_PREFIX.length(), name.length() - FILE_SUFFIX.length()))
+                            .sorted()
+                            .forEach(languageCodes::add);
+                    }
                 }
             }
         } catch (Exception e) {
@@ -94,6 +108,8 @@ final class Localization {
         if (languageCodes.isEmpty()) {
             tryAddLanguage(languageCodes, "hu");
             tryAddLanguage(languageCodes, "en");
+            tryAddLanguage(languageCodes, "de");
+            tryAddLanguage(languageCodes, "ru");
         }
         return languageCodes;
     }

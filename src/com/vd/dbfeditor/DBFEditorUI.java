@@ -88,6 +88,7 @@ public class DBFEditorUI extends JFrame {
     private JMenu fileMenu;
     private JMenu databaseMenu;
     private JMenu settingsMenu;
+    private JMenu helpMenu;
     private JMenu languageMenu;
     private JMenu lookAndFeelMenu;
     private JMenuItem openMenuItem;
@@ -99,6 +100,7 @@ public class DBFEditorUI extends JFrame {
     private JMenuItem editRecordMenuItem;
     private JMenuItem deleteRecordMenuItem;
     private JMenuItem editStructureMenuItem;
+    private JMenuItem aboutMenuItem;
 
     private boolean busy;
     private boolean updatingCharsetCombo;
@@ -199,6 +201,7 @@ public class DBFEditorUI extends JFrame {
         fileMenu = new JMenu();
         databaseMenu = new JMenu();
         settingsMenu = new JMenu();
+        helpMenu = new JMenu();
         languageMenu = new JMenu();
         lookAndFeelMenu = new JMenu();
 
@@ -245,6 +248,9 @@ public class DBFEditorUI extends JFrame {
         editStructureMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_E, shortcutMask | InputEvent.SHIFT_DOWN_MASK));
         editStructureMenuItem.setEnabled(false);
 
+        aboutMenuItem = new JMenuItem();
+        aboutMenuItem.addActionListener(e -> showAboutDialog());
+
         fileMenu.add(openMenuItem);
         fileMenu.add(closeMenuItem);
         fileMenu.add(saveMenuItem);
@@ -263,6 +269,10 @@ public class DBFEditorUI extends JFrame {
         settingsMenu.add(languageMenu);
         settingsMenu.add(lookAndFeelMenu);
         menuBar.add(settingsMenu);
+
+        helpMenu.add(aboutMenuItem);
+        menuBar.add(helpMenu);
+
         rebuildLanguageMenu();
         rebuildLookAndFeelMenu();
         return menuBar;
@@ -330,6 +340,7 @@ public class DBFEditorUI extends JFrame {
         fileMenu.setText(localization.text("menu.file"));
         databaseMenu.setText(localization.text("menu.database"));
         settingsMenu.setText(localization.text("menu.settings"));
+        helpMenu.setText(localization.text("menu.help"));
         languageMenu.setText(localization.text("menu.settings.language"));
         lookAndFeelMenu.setText(localization.text("menu.settings.look_and_feel"));
         openMenuItem.setText(localization.text("menu.file.open"));
@@ -341,6 +352,7 @@ public class DBFEditorUI extends JFrame {
         editRecordMenuItem.setText(localization.text("menu.database.edit_record"));
         deleteRecordMenuItem.setText(localization.text("menu.database.delete_record"));
         editStructureMenuItem.setText(localization.text("menu.database.edit_structure"));
+        aboutMenuItem.setText(localization.text("menu.help.about"));
 
         for (Localization.LanguageOption option : localization.availableLanguages()) {
             JRadioButtonMenuItem item = languageMenuItems.get(option.code());
@@ -352,6 +364,15 @@ public class DBFEditorUI extends JFrame {
 
         updateStatusBar(null);
         updateWindowTitle();
+    }
+
+    private void showAboutDialog() {
+        JOptionPane.showMessageDialog(
+            this,
+            localization.text("dialog.about.message"),
+            localization.text("dialog.about.title"),
+            JOptionPane.INFORMATION_MESSAGE
+        );
     }
 
     private void applyDialogLocalization() {
