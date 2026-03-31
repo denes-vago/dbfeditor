@@ -2,6 +2,7 @@ package com.vd.dbfeditor.ui.dialog;
 
 import com.vd.dbfeditor.dbf.DBFEngine;
 import com.vd.dbfeditor.i18n.Localization;
+import com.vd.dbfeditor.ui.TextEditSupport;
 import java.awt.BorderLayout;
 import java.awt.Dialog;
 import java.awt.FlowLayout;
@@ -67,12 +68,14 @@ public final class RecordEditorDialog {
                 JTextArea editor = new JTextArea(values.get(i), 5, 40);
                 editor.setLineWrap(true);
                 editor.setWrapStyleWord(true);
+                TextEditSupport.installUndoSupport(editor);
                 editors.add(editor);
                 gbc.fill = GridBagConstraints.BOTH;
                 gbc.weighty = 1.0;
                 formPanel.add(new JScrollPane(editor), gbc);
             } else {
                 JTextField editor = new JTextField(values.get(i), Math.min(Math.max(field.length(), 12), 40));
+                TextEditSupport.installUndoSupport(editor);
                 editors.add(editor);
                 gbc.fill = GridBagConstraints.HORIZONTAL;
                 gbc.weighty = 0;

@@ -13,6 +13,7 @@ import com.vd.dbfeditor.ui.LookAndFeelOption;
 import com.vd.dbfeditor.ui.LookAndFeelSupport;
 import com.vd.dbfeditor.ui.TabHeader;
 import com.vd.dbfeditor.ui.TableColumnSizer;
+import com.vd.dbfeditor.ui.TextEditSupport;
 import com.vd.dbfeditor.ui.dialog.ReplaceDialog;
 import com.vd.dbfeditor.ui.dialog.RecordEditorDialog;
 import com.vd.dbfeditor.ui.dialog.SearchDialog;
@@ -20,9 +21,12 @@ import com.vd.dbfeditor.ui.dialog.SqlDialectDialog;
 import com.vd.dbfeditor.ui.dialog.StructureEditorDialog;
 import java.awt.BorderLayout;
 import java.awt.ComponentOrientation;
+import java.awt.Toolkit;
 import java.awt.Window;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -52,8 +56,8 @@ import javax.swing.event.ChangeListener;
 public class DBFEditorUI extends JFrame {
     private static final String PREF_LANGUAGE = "language";
     private static final String PREF_LOOK_AND_FEEL = "lookAndFeel";
-    private static final String PREF_LAST_SEARCH_TEXT = "lastSearchText";
-    private static final String PREF_SEARCH_CASE_SENSITIVE = "searchCaseSensitive";
+    private static final String PREF_LAST_FIND_TEXT = "lastFindText";
+    private static final String PREF_FIND_CASE_SENSITIVE = "findCaseSensitive";
     private static final String PREF_LAST_REPLACE_TEXT = "lastReplaceText";
     private static final Preferences PREFERENCES = Preferences.userNodeForPackage(DBFEditorUI.class);
 
@@ -148,6 +152,11 @@ public class DBFEditorUI extends JFrame {
         EditorMenuBar menuBar = new EditorMenuBar(
             this::openDbfFile,
             this::closeCurrentFile,
+            this::cutCurrentSelection,
+            this::copyCurrentSelection,
+            this::pasteCurrentSelection,
+            this::undoCurrentFieldChange,
+            this::redoCurrentFieldChange,
             this::saveCurrentFile,
             this::saveFileAs,
             this::exitApplication,
@@ -250,6 +259,28 @@ public class DBFEditorUI extends JFrame {
             selectedPaths.add(chooser.getSelectedFile().toPath());
         }
         loadDbfFiles(selectedPaths, charset);
+    }
+
+    private void cutCurrentSelection() {
+        if (copySelectedCellToClipboard()) {
+            clearSelectedCellValue();
+            return;
+        }
+        TextEditSupport.cutFocusedText();
+    }
+
+    private void copyCurrentSelection() {
+        if (copySelectedCellToClipboard()) {
+            return;
+        }
+        TextEditSupport.copyFocusedText();
+    }
+
+    private void pasteCurrentSelection() {
+        if (pasteClipboardIntoSelectedCell()) {
+            return;
+        }
+        TextEditSupport.pasteFocusedText();
     }
 
     private Charset selectedCharset() {
@@ -393,7 +424,10 @@ public class DBFEditorUI extends JFrame {
             return;
         }
 
+        List<List<String>> beforeRecords = snapshotRecords(document.dbf.records());
         document.dbf.records().set(rowIndex, editedRow);
+        List<List<String>> afterRecords = snapshotRecords(document.dbf.records());
+        registerFieldContentEdit(document, beforeRecords, afterRecords);
         document.tableModel.fireRowUpdated(rowIndex);
         TableColumnSizer.packColumns(document.table);
         document.modified = true;
@@ -483,8 +517,8 @@ public class DBFEditorUI extends JFrame {
         SearchDialog.SearchRequest request = SearchDialog.show(
             this,
             localization,
-            PREFERENCES.get(PREF_LAST_SEARCH_TEXT, ""),
-            PREFERENCES.getBoolean(PREF_SEARCH_CASE_SENSITIVE, false)
+            PREFERENCES.get(PREF_LAST_FIND_TEXT, ""),
+            PREFERENCES.getBoolean(PREF_FIND_CASE_SENSITIVE, false)
         );
         if (request == null) {
             return;
@@ -502,11 +536,14 @@ public class DBFEditorUI extends JFrame {
         }
 
         boolean caseSensitive = request.caseSensitive();
-        PREFERENCES.put(PREF_LAST_SEARCH_TEXT, normalizedQuery);
-        PREFERENCES.putBoolean(PREF_SEARCH_CASE_SENSITIVE, caseSensitive);
+        PREFERENCES.put(PREF_LAST_FIND_TEXT, normalizedQuery);
+        PREFERENCES.putBoolean(PREF_FIND_CASE_SENSITIVE, caseSensitive);
 
         String effectiveQuery = caseSensitive ? normalizedQuery : normalizedQuery.toLowerCase();
-        for (int rowIndex = 0; rowIndex < document.dbf.records().size(); rowIndex++) {
+        int rowCount = document.dbf.records().size();
+        int startRow = searchStartRow(document, rowCount);
+        for (int offset = 0; offset < rowCount; offset++) {
+            int rowIndex = (startRow + offset) % rowCount;
             List<String> row = document.dbf.records().get(rowIndex);
             for (int columnIndex = 0; columnIndex < row.size(); columnIndex++) {
                 String value = row.get(columnIndex);
@@ -538,9 +575,9 @@ public class DBFEditorUI extends JFrame {
         ReplaceDialog.ReplaceRequest request = ReplaceDialog.show(
             this,
             localization,
-            PREFERENCES.get(PREF_LAST_SEARCH_TEXT, ""),
+            PREFERENCES.get(PREF_LAST_FIND_TEXT, ""),
             PREFERENCES.get(PREF_LAST_REPLACE_TEXT, ""),
-            false
+            PREFERENCES.getBoolean(PREF_FIND_CASE_SENSITIVE, false)
         );
         if (request == null) {
             return;
@@ -557,11 +594,12 @@ public class DBFEditorUI extends JFrame {
             return;
         }
 
-        PREFERENCES.put(PREF_LAST_SEARCH_TEXT, searchText);
+        PREFERENCES.put(PREF_LAST_FIND_TEXT, searchText);
         PREFERENCES.put(PREF_LAST_REPLACE_TEXT, request.replaceText());
-        PREFERENCES.putBoolean(PREF_SEARCH_CASE_SENSITIVE, request.caseSensitive());
+        PREFERENCES.putBoolean(PREF_FIND_CASE_SENSITIVE, request.caseSensitive());
 
         int replacements;
+        List<List<String>> beforeRecords = snapshotRecords(document.dbf.records());
         try {
             replacements = replaceAllMatches(document, searchText, request.replaceText(), request.caseSensitive());
         } catch (IllegalArgumentException e) {
@@ -583,6 +621,8 @@ public class DBFEditorUI extends JFrame {
             return;
         }
 
+        List<List<String>> afterRecords = snapshotRecords(document.dbf.records());
+        registerFieldContentEdit(document, beforeRecords, afterRecords);
         document.tableModel.fireTableDataChanged();
         TableColumnSizer.packColumns(document.table);
         document.modified = true;
@@ -597,11 +637,104 @@ public class DBFEditorUI extends JFrame {
         );
     }
 
+    private boolean copySelectedCellToClipboard() {
+        SelectedCell selectedCell = selectedCell();
+        if (selectedCell == null) {
+            return false;
+        }
+
+        String value = selectedCell.document.dbf.records().get(selectedCell.rowIndex).get(selectedCell.columnIndex);
+        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(
+            new StringSelection(value == null ? "" : value),
+            null
+        );
+        return true;
+    }
+
+    private void clearSelectedCellValue() {
+        SelectedCell selectedCell = selectedCell();
+        if (selectedCell == null) {
+            return;
+        }
+        updateSelectedCellValue(selectedCell, "");
+    }
+
+    private boolean pasteClipboardIntoSelectedCell() {
+        SelectedCell selectedCell = selectedCell();
+        if (selectedCell == null) {
+            return false;
+        }
+
+        try {
+            Object clipboardValue = Toolkit.getDefaultToolkit()
+                .getSystemClipboard()
+                .getData(DataFlavor.stringFlavor);
+            String pastedText = clipboardValue == null ? "" : clipboardValue.toString();
+            updateSelectedCellValue(selectedCell, pastedText);
+            return true;
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(
+                this,
+                localization.text("dialog.clipboard.error"),
+                localization.text("dialog.error.title"),
+                JOptionPane.ERROR_MESSAGE
+            );
+            return true;
+        }
+    }
+
+    private void updateSelectedCellValue(SelectedCell selectedCell, String newValue) {
+        DBFEngine.FieldDescriptor field = selectedCell.document.dbf.fields().get(selectedCell.columnIndex);
+        String validationError = DBFEngine.validateValue(field, newValue, selectedCell.document.charset);
+        if (validationError != null) {
+            JOptionPane.showMessageDialog(
+                this,
+                localization.text("dialog.clipboard.invalid_value", field.name(), validationError),
+                localization.text("dialog.error.title"),
+                JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }
+
+        List<List<String>> beforeRecords = snapshotRecords(selectedCell.document.dbf.records());
+        selectedCell.document.dbf.records().get(selectedCell.rowIndex).set(selectedCell.columnIndex, newValue);
+        List<List<String>> afterRecords = snapshotRecords(selectedCell.document.dbf.records());
+        registerFieldContentEdit(selectedCell.document, beforeRecords, afterRecords);
+        selectedCell.document.tableModel.fireRowUpdated(selectedCell.rowIndex);
+        TableColumnSizer.packColumns(selectedCell.document.table);
+        selectedCell.document.modified = true;
+        updateTabTitle(selectedCell.document);
+        documentUiController.updateWindowTitle(busy);
+        int viewRow = selectedCell.document.table.convertRowIndexToView(selectedCell.rowIndex);
+        int viewColumn = selectedCell.document.table.convertColumnIndexToView(selectedCell.columnIndex);
+        selectedCell.document.table.changeSelection(viewRow, viewColumn, false, false);
+    }
+
+    private SelectedCell selectedCell() {
+        DocumentState document = currentDocument();
+        if (document == null || busy) {
+            return null;
+        }
+        int viewRow = document.table.getSelectedRow();
+        int viewColumn = document.table.getSelectedColumn();
+        if (viewRow < 0 || viewColumn < 0) {
+            return null;
+        }
+        return new SelectedCell(
+            document,
+            document.table.convertRowIndexToModel(viewRow),
+            document.table.convertColumnIndexToModel(viewColumn)
+        );
+    }
+
     private int replaceAllMatches(DocumentState document, String searchText, String replaceText, boolean caseSensitive) {
         int replacements = 0;
         String effectiveSearch = caseSensitive ? searchText : searchText.toLowerCase();
+        int rowCount = document.dbf.records().size();
+        int startRow = searchStartRow(document, rowCount);
 
-        for (int rowIndex = 0; rowIndex < document.dbf.records().size(); rowIndex++) {
+        for (int offset = 0; offset < rowCount; offset++) {
+            int rowIndex = (startRow + offset) % rowCount;
             List<String> row = document.dbf.records().get(rowIndex);
             for (int columnIndex = 0; columnIndex < row.size(); columnIndex++) {
                 String currentValue = row.get(columnIndex);
@@ -646,6 +779,71 @@ public class DBFEditorUI extends JFrame {
         }
         result.append(input.substring(start));
         return result.toString();
+    }
+
+    private int searchStartRow(DocumentState document, int rowCount) {
+        if (rowCount <= 0) {
+            return 0;
+        }
+        int selectedViewRow = document.table.getSelectedRow();
+        if (selectedViewRow < 0) {
+            return 0;
+        }
+        int selectedModelRow = document.table.convertRowIndexToModel(selectedViewRow);
+        return (selectedModelRow + 1) % rowCount;
+    }
+
+    private void undoCurrentFieldChange() {
+        DocumentState document = currentDocument();
+        if (document == null || busy || document.undoStack.isEmpty()) {
+            return;
+        }
+
+        DocumentState.FieldContentEdit edit = document.undoStack.removeLast();
+        document.redoStack.addLast(edit);
+        applyRecordSnapshot(document, edit.beforeRecords());
+    }
+
+    private void redoCurrentFieldChange() {
+        DocumentState document = currentDocument();
+        if (document == null || busy || document.redoStack.isEmpty()) {
+            return;
+        }
+
+        DocumentState.FieldContentEdit edit = document.redoStack.removeLast();
+        document.undoStack.addLast(edit);
+        applyRecordSnapshot(document, edit.afterRecords());
+    }
+
+    private void registerFieldContentEdit(DocumentState document, List<List<String>> beforeRecords, List<List<String>> afterRecords) {
+        if (beforeRecords.equals(afterRecords)) {
+            return;
+        }
+        document.undoStack.addLast(new DocumentState.FieldContentEdit(beforeRecords, afterRecords));
+        document.redoStack.clear();
+    }
+
+    private void applyRecordSnapshot(DocumentState document, List<List<String>> records) {
+        document.dbf.records().clear();
+        for (List<String> row : records) {
+            document.dbf.records().add(new ArrayList<>(row));
+        }
+        document.tableModel.fireTableDataChanged();
+        TableColumnSizer.packColumns(document.table);
+        document.modified = true;
+        updateTabTitle(document);
+        documentUiController.updateWindowTitle(busy);
+    }
+
+    private List<List<String>> snapshotRecords(List<List<String>> records) {
+        List<List<String>> snapshot = new ArrayList<>(records.size());
+        for (List<String> row : records) {
+            snapshot.add(new ArrayList<>(row));
+        }
+        return snapshot;
+    }
+
+    private record SelectedCell(DocumentState document, int rowIndex, int columnIndex) {
     }
 
     private void editDatabaseStructure() {

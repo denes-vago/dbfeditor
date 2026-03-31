@@ -1,6 +1,7 @@
 package com.vd.dbfeditor.ui.dialog;
 
 import com.vd.dbfeditor.i18n.Localization;
+import com.vd.dbfeditor.ui.TextEditSupport;
 import java.awt.BorderLayout;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -19,6 +20,7 @@ public final class SearchDialog {
 
     public static SearchRequest show(JFrame owner, Localization localization, String initialText, boolean initialCaseSensitive) {
         JTextField searchField = new JTextField(initialText, 24);
+        TextEditSupport.installUndoSupport(searchField);
         JCheckBox caseSensitiveCheckBox = new JCheckBox(
             localization.text("dialog.search.case_sensitive"),
             initialCaseSensitive

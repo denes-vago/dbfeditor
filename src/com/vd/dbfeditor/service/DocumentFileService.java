@@ -5,7 +5,9 @@ import com.vd.dbfeditor.export.CsvExporter;
 import com.vd.dbfeditor.export.ExportFormat;
 import com.vd.dbfeditor.export.SqlDialect;
 import com.vd.dbfeditor.export.SqlExporter;
+import com.vd.dbfeditor.export.XlsxExporter;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -37,17 +39,22 @@ public final class DocumentFileService {
 
     public static void export(Path path, DBFEngine.DBFFile dbf, ExportFormat format, String tableName, SqlDialect sqlDialect)
         throws IOException {
+        if (format == ExportFormat.XLSX) {
+            try (OutputStream output = Files.newOutputStream(
+                path,
+                StandardOpenOption.CREATE,
+                StandardOpenOption.TRUNCATE_EXISTING,
+                StandardOpenOption.WRITE
+            )) {
+                XlsxExporter.export(dbf, output);
+            }
+            return;
+        }
+
         String content = format == ExportFormat.CSV
             ? CsvExporter.export(dbf)
             : SqlExporter.export(dbf, tableName, sqlDialect);
-        Files.writeString(
-            path,
-            content,
-            StandardCharsets.UTF_8,
-            StandardOpenOption.CREATE,
-            StandardOpenOption.TRUNCATE_EXISTING,
-            StandardOpenOption.WRITE
-        );
+        Files.writeString(path, content, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
     }
 
     public static DBFEngine.DBFFile copyDbf(DBFEngine.DBFFile source) {

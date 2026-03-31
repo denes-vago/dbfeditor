@@ -1,6 +1,7 @@
 package com.vd.dbfeditor.ui.dialog;
 
 import com.vd.dbfeditor.i18n.Localization;
+import com.vd.dbfeditor.ui.TextEditSupport;
 import java.awt.BorderLayout;
 import java.awt.GridLayout;
 import java.awt.event.WindowAdapter;
@@ -26,6 +27,8 @@ public final class ReplaceDialog {
     ) {
         JTextField searchField = new JTextField(initialSearchText, 24);
         JTextField replaceField = new JTextField(initialReplaceText, 24);
+        TextEditSupport.installUndoSupport(searchField);
+        TextEditSupport.installUndoSupport(replaceField);
         JCheckBox caseSensitiveCheckBox = new JCheckBox(
             localization.text("dialog.replace.case_sensitive"),
             initialCaseSensitive

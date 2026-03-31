@@ -2,6 +2,7 @@ package com.vd.dbfeditor.export;
 
 public enum ExportFormat {
     CSV(".csv", "dialog.export.csv.title", "file_filter.csv"),
+    XLSX(".xlsx", "dialog.export.xlsx.title", "file_filter.xlsx"),
     SQL(".sql", "dialog.export.sql.title", "file_filter.sql");
 
     private final String extension;

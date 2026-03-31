@@ -2,6 +2,7 @@ package com.vd.dbfeditor.ui.dialog;
 
 import com.vd.dbfeditor.dbf.DBFEngine;
 import com.vd.dbfeditor.i18n.Localization;
+import com.vd.dbfeditor.ui.TextEditSupport;
 import java.awt.BorderLayout;
 import java.awt.Dialog;
 import java.awt.FlowLayout;
@@ -52,9 +53,11 @@ public final class StructureEditorDialog {
 
         JTable structureTable = new JTable(model);
         JTextField nameEditorField = new JTextField();
+        TextEditSupport.installUndoSupport(nameEditorField);
         ((AbstractDocument) nameEditorField.getDocument()).setDocumentFilter(new MaxLengthDocumentFilter(11));
         structureTable.getColumnModel().getColumn(0).setCellEditor(new DefaultCellEditor(nameEditorField));
         JTextField typeEditorField = new JTextField();
+        TextEditSupport.installUndoSupport(typeEditorField);
         ((AbstractDocument) typeEditorField.getDocument()).setDocumentFilter(new FieldTypeDocumentFilter());
         structureTable.getColumnModel().getColumn(1).setCellEditor(new DefaultCellEditor(typeEditorField));
         dialog.add(new JScrollPane(structureTable), BorderLayout.CENTER);

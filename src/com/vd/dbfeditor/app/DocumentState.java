@@ -3,6 +3,8 @@ package com.vd.dbfeditor.app;
 import com.vd.dbfeditor.dbf.DBFEngine;
 import com.vd.dbfeditor.ui.DBFTableModel;
 import com.vd.dbfeditor.ui.TabHeader;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import javax.swing.JPanel;
@@ -17,6 +19,8 @@ final class DocumentState {
     final JTable table;
     final DBFTableModel tableModel;
     final TabHeader tabHeader;
+    final Deque<FieldContentEdit> undoStack = new ArrayDeque<>();
+    final Deque<FieldContentEdit> redoStack = new ArrayDeque<>();
 
     DocumentState(
         Path path,
@@ -36,5 +40,8 @@ final class DocumentState {
         this.table = table;
         this.tableModel = tableModel;
         this.tabHeader = tabHeader;
+    }
+
+    record FieldContentEdit(java.util.List<java.util.List<String>> beforeRecords, java.util.List<java.util.List<String>> afterRecords) {
     }
 }
