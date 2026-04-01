@@ -22,7 +22,6 @@ The project currently focuses on:
 - displaying memo diagnostics when companion DBT data is missing or damaged
 - showing file version, size, encoding, deleted record count, and memo status in the status bar
 - remembering the last used directory in file chooser dialogs
-- localizing file chooser labels and buttons
 - localized UI strings
 
 ## Project Structure
