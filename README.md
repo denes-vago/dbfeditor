@@ -11,7 +11,6 @@ The project currently focuses on:
 - reading and writing memo fields through companion DBT files
 - editing memo fields with a multiline editor
 - working with multiple open files in tabs
-- closing tabs from a tab context menu (`Close`, `Close others`, `Close all`)
 - per-file character encoding selection
 - searching, find next/previous, and search-and-replace inside the active table
 - sorting by clicking table headers
@@ -23,8 +22,6 @@ The project currently focuses on:
 - displaying memo diagnostics when companion DBT data is missing or damaged
 - showing file version, size, encoding, deleted record count, and memo status in the status bar
 - localized UI strings
-- optional FlatLaf themes through the Maven build
-- JUnit 5 based unit and smoke tests for the DBF engine and search/filter workflow
 
 ## Project Structure
 
@@ -77,8 +74,6 @@ The script:
 1. runs a Maven package build
 2. creates a runnable `dbfeditor.jar` with dependencies
 3. starts the Swing application from the JAR
-
-When FlatLaf is available on the classpath, additional `Flat Light`, `Flat Dark`, `Flat IntelliJ`, and `Flat Darcula` themes appear in the `Settings > Look and Feel` menu.
 
 ## Table Features
 
