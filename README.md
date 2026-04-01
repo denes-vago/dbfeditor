@@ -17,13 +17,14 @@ The project currently focuses on:
 - sorting by clicking table headers
 - filtering the active table globally or by a selected column
 - editing selected field contents with clipboard operations and undo/redo
-- exporting the current database or selected records to CSV, Excel, or SQL
+- exporting the current database to CSV, Excel, or SQL
 - showing, restoring, and purging deleted DBF records
+- showing only deleted records when needed
 - displaying memo diagnostics when companion DBT data is missing or damaged
 - showing file version, size, encoding, deleted record count, and memo status in the status bar
 - localized UI strings
 - optional FlatLaf themes through the Maven build
-- lightweight smoke and unit tests for the DBF engine and search/filter workflow
+- JUnit 5 based unit and smoke tests for the DBF engine and search/filter workflow
 
 ## Project Structure
 
@@ -84,12 +85,13 @@ When FlatLaf is available on the classpath, additional `Flat Light`, `Flat Dark`
 - Click a table header to sort by that column.
 - Use the `Edit` menu for filtering, searching, search and replace, undo/redo, and clipboard-based field editing.
 - Search supports continuing to the next or previous match.
+- Search can target all columns or one selected column.
 - The context menu on the table also offers cut/copy/paste, record editing, delete/restore, search, find next/previous, and search and replace.
 - Filters are applied per open tab.
 - Filters can target all columns or one selected column.
 - When a filter is active, saving and exporting use only the currently visible records.
 - Before saving or exporting a filtered view, the application warns that only matching records will be written.
-- Deleted records can be shown, restored, and purged permanently.
+- Deleted records can be shown, filtered to deleted-only, restored, and purged permanently.
 
 ## Tab Features
 
@@ -127,31 +129,29 @@ java -jar target/dbfeditor.jar file1.dbf file2.dbf
 
 ## Tests
 
-The repository includes small executable test classes under `com.vd.dbfeditor.tests`.
-
-Compile first:
+Compile test sources first:
 
 ```bash
 mvn -DskipTests test-compile
 ```
 
-Run the unit tests:
+Run the JUnit 5 unit tests:
 
 ```bash
-java -cp target/classes:target/test-classes com.vd.dbfeditor.tests.DBFEngineUnitTest
-java -Djava.awt.headless=true -cp target/classes:target/test-classes com.vd.dbfeditor.tests.SearchFilterWorkflowUnitTest
+mvn -Dtest=DBFEngineUnitTest,SearchFilterWorkflowUnitTest test
 ```
 
-Run a DBF read smoke test for a specific file:
+Run the smoke tests:
 
 ```bash
-java -cp target/classes:target/test-classes com.vd.dbfeditor.tests.DBFReadSmokeTest path/to/file.dbf
+mvn -Dtest=DBFReadSmokeTest,DBFWriteSmokeTest test
 ```
 
-Run the DBF write smoke test:
+Or use the helper scripts:
 
 ```bash
-java -cp target/classes:target/test-classes com.vd.dbfeditor.tests.DBFWriteSmokeTest
+zsh scripts/run_unit_tests.sh
+zsh scripts/test_all_dbf.sh
 ```
 
 ## Warning

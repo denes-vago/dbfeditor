@@ -12,6 +12,7 @@ import com.vd.dbfeditor.ui.FileChooserFactory;
 import com.vd.dbfeditor.ui.LookAndFeelOption;
 import com.vd.dbfeditor.ui.LookAndFeelSupport;
 import com.vd.dbfeditor.ui.TableColumnSizer;
+import com.vd.dbfeditor.ui.TablePopupMenuBuilder;
 import com.vd.dbfeditor.ui.TextEditSupport;
 import com.vd.dbfeditor.ui.dialog.RecordEditorDialog;
 import com.vd.dbfeditor.ui.dialog.SqlDialectDialog;
@@ -58,6 +59,7 @@ public class DBFEditorUI extends JFrame {
     private static final String PREF_LOOK_AND_FEEL = "lookAndFeel";
     private static final String PREF_LAST_FIND_TEXT = "lastFindText";
     private static final String PREF_FIND_CASE_SENSITIVE = "findCaseSensitive";
+    private static final String PREF_FIND_COLUMN = "findColumn";
     private static final String PREF_LAST_REPLACE_TEXT = "lastReplaceText";
     private static final String PREF_SHOW_DELETED_RECORDS = "showDeletedRecords";
     private static final Preferences PREFERENCES = Preferences.userNodeForPackage(DBFEditorUI.class);
@@ -88,6 +90,7 @@ public class DBFEditorUI extends JFrame {
             PREFERENCES,
             PREF_LAST_FIND_TEXT,
             PREF_FIND_CASE_SENSITIVE,
+            PREF_FIND_COLUMN,
             PREF_LAST_REPLACE_TEXT
         );
         saveExportWorkflow = new SaveExportWorkflow(this, localization, fileChooserFactory);
@@ -173,13 +176,13 @@ public class DBFEditorUI extends JFrame {
             this::saveFileAs,
             this::exitApplication,
             this::exportCurrentDocument,
-            this::exportSelectedRecords,
             this::addNewRecord,
             this::editSelectedRecord,
             this::deleteSelectedRecords,
             this::restoreSelectedRecords,
             this::purgeDeletedRecords,
             this::toggleShowDeletedRecords,
+            this::toggleShowOnlyDeletedRecords,
             this::searchCurrentDocument,
             this::searchNextMatch,
             this::searchPreviousMatch,
@@ -461,22 +464,7 @@ public class DBFEditorUI extends JFrame {
     }
 
     private void showMemoWarnings(DBFEngine.DBFFile dbf) {
-        if (dbf == null || dbf.memoWarnings().isEmpty()) {
-            return;
-        }
-        StringBuilder message = new StringBuilder();
-        for (String warning : dbf.memoWarnings()) {
-            if (message.length() > 0) {
-                message.append('\n');
-            }
-            message.append(warning);
-        }
-        JOptionPane.showMessageDialog(
-            this,
-            message.toString(),
-            localization.text("dialog.memo.title"),
-            JOptionPane.WARNING_MESSAGE
-        );
+        MemoWarningSupport.showWarnings(this, localization, dbf);
     }
 
     private void editSelectedRecord() {
@@ -791,6 +779,17 @@ public class DBFEditorUI extends JFrame {
         PREFERENCES.putBoolean(PREF_SHOW_DELETED_RECORDS, showDeletedRecords);
         searchFilterWorkflow.setShowDeletedRecords(document, showDeletedRecords);
         applyDocumentFilter(document);
+        refreshDocumentUiState();
+    }
+
+    private void toggleShowOnlyDeletedRecords(boolean showOnlyDeletedRecords) {
+        DocumentModel document = currentDocument();
+        if (document == null || busy) {
+            return;
+        }
+        searchFilterWorkflow.setShowOnlyDeletedRecords(document, showOnlyDeletedRecords);
+        applyDocumentFilter(document);
+        refreshDocumentUiState();
     }
 
     private void applyDocumentFilter(DocumentModel document) {
@@ -1046,24 +1045,6 @@ public class DBFEditorUI extends JFrame {
         return rebuildDbf(document.dbf, document.dbf.fields(), visibleRecords, visibleDeletedFlags);
     }
 
-    private DBFEngine.DBFFile snapshotSelectedDbf(DocumentModel document) {
-        DocumentView view = viewFor(document);
-        int[] selectedRows = view.table.getSelectedRows();
-        List<List<String>> selectedRecords = new ArrayList<>(selectedRows.length);
-        List<Boolean> selectedDeletedFlags = new ArrayList<>(selectedRows.length);
-        for (int selectedRow : selectedRows) {
-            int modelRow = view.table.convertRowIndexToModel(selectedRow);
-            selectedRecords.add(new ArrayList<>(document.dbf.records().get(modelRow)));
-            selectedDeletedFlags.add(document.dbf.deletedFlags().get(modelRow));
-        }
-        return rebuildDbf(document.dbf, document.dbf.fields(), selectedRecords, selectedDeletedFlags);
-    }
-
-    private boolean hasSelectedRows(DocumentModel document) {
-        DocumentView view = viewFor(document);
-        return view != null && view.table.getSelectedRowCount() > 0;
-    }
-
     private void saveCurrentFile() {
         DocumentModel document = currentDocument();
         if (busy || document == null) {
@@ -1185,25 +1166,12 @@ public class DBFEditorUI extends JFrame {
     }
 
     private void exportCurrentDocument(ExportFormat format) {
-        exportDocument(format, false);
+        exportDocument(format);
     }
 
-    private void exportSelectedRecords(ExportFormat format) {
-        exportDocument(format, true);
-    }
-
-    private void exportDocument(ExportFormat format, boolean selectedOnly) {
+    private void exportDocument(ExportFormat format) {
         DocumentModel document = currentDocument();
         if (busy || document == null) {
-            return;
-        }
-        if (selectedOnly && !hasSelectedRows(document)) {
-            JOptionPane.showMessageDialog(
-                this,
-                localization.text("dialog.export.selected_none"),
-                localization.text("dialog.export.title"),
-                JOptionPane.INFORMATION_MESSAGE
-            );
             return;
         }
         SaveExportWorkflow.ExportRequest request = saveExportWorkflow.requestExport(
@@ -1212,10 +1180,10 @@ public class DBFEditorUI extends JFrame {
             () -> !hasActiveFilter(document)
                 || saveExportWorkflow.confirmFilteredWrite(viewFor(document).table.getRowCount(), document.dbf.records().size(), localization.text("dialog.export.title")),
             this::askSqlDialect,
-            suggestExportPath(document, format, selectedOnly)
+            suggestExportPath(document, format)
         );
         if (request != null) {
-            exportToPath(document, request.path(), format, request.sqlDialect(), selectedOnly);
+            exportToPath(document, request.path(), format, request.sqlDialect());
         }
     }
 
@@ -1226,9 +1194,9 @@ public class DBFEditorUI extends JFrame {
             && viewFor(document).table.getRowCount() != document.dbf.records().size();
     }
 
-    private void exportToPath(DocumentModel document, Path path, ExportFormat format, SqlDialect sqlDialect, boolean selectedOnly) {
+    private void exportToPath(DocumentModel document, Path path, ExportFormat format, SqlDialect sqlDialect) {
         setBusy(true, localization.text("status.exporting"));
-        DBFEngine.DBFFile snapshot = selectedOnly ? snapshotSelectedDbf(document) : snapshotVisibleDbf(document);
+        DBFEngine.DBFFile snapshot = snapshotVisibleDbf(document);
 
         new SwingWorker<Void, Void>() {
             @Override
@@ -1266,14 +1234,7 @@ public class DBFEditorUI extends JFrame {
     }
 
     private Path suggestExportPath(DocumentModel document, ExportFormat format) {
-        return suggestExportPath(document, format, false);
-    }
-
-    private Path suggestExportPath(DocumentModel document, ExportFormat format, boolean selectedOnly) {
         String baseName = document.path != null ? stripExtension(document.path.getFileName().toString()) : "export";
-        if (selectedOnly) {
-            baseName += "_selected";
-        }
         Path parent = document.path != null && document.path.getParent() != null
             ? document.path.getParent()
             : Path.of("").toAbsolutePath();
@@ -1413,6 +1374,7 @@ public class DBFEditorUI extends JFrame {
     private void updateViewFromCurrentDocument() {
         DocumentModel document = currentDocument();
         editorMenuBar.syncShowDeletedMenu(document != null && document.showDeletedRecords);
+        editorMenuBar.syncShowOnlyDeletedMenu(document != null && document.showOnlyDeletedRecords);
         documentUiController.refreshCurrentDocumentView(busy);
     }
 
@@ -1432,6 +1394,7 @@ public class DBFEditorUI extends JFrame {
     private DocumentModel createDocumentModel(String displayName, Path path, Charset charset, DBFEngine.DBFFile dbf, boolean modified) {
         DocumentModel document = new DocumentModel(displayName, path, charset, dbf, modified);
         document.showDeletedRecords = loadShowDeletedRecordsPreference();
+        document.showOnlyDeletedRecords = false;
         return document;
     }
 
@@ -1510,51 +1473,20 @@ public class DBFEditorUI extends JFrame {
             return;
         }
 
-        JPopupMenu popupMenu = new JPopupMenu();
-
-        JMenuItem cutItem = new JMenuItem(localization.text("menu.edit.cut"));
-        cutItem.addActionListener(e -> cutCurrentSelection());
-        popupMenu.add(cutItem);
-
-        JMenuItem copyItem = new JMenuItem(localization.text("menu.edit.copy"));
-        copyItem.addActionListener(e -> copyCurrentSelection());
-        popupMenu.add(copyItem);
-
-        JMenuItem pasteItem = new JMenuItem(localization.text("menu.edit.paste"));
-        pasteItem.addActionListener(e -> pasteCurrentSelection());
-        popupMenu.add(pasteItem);
-        popupMenu.addSeparator();
-
-        JMenuItem editItem = new JMenuItem(localization.text("menu.database.edit_record"));
-        editItem.addActionListener(e -> editSelectedRecord());
-        popupMenu.add(editItem);
-
-        JMenuItem deleteItem = new JMenuItem(localization.text("menu.database.delete_record"));
-        deleteItem.addActionListener(e -> deleteSelectedRecords());
-        popupMenu.add(deleteItem);
-
-        JMenuItem restoreItem = new JMenuItem(localization.text("menu.database.restore_record"));
-        restoreItem.setEnabled(hasDeletedSelection(document, view));
-        restoreItem.addActionListener(e -> restoreSelectedRecords());
-        popupMenu.add(restoreItem);
-        popupMenu.addSeparator();
-
-        JMenuItem searchItem = new JMenuItem(localization.text("menu.edit.search"));
-        searchItem.addActionListener(e -> searchCurrentDocument());
-        popupMenu.add(searchItem);
-
-        JMenuItem searchNextItem = new JMenuItem(localization.text("menu.edit.search_next"));
-        searchNextItem.addActionListener(e -> searchNextMatch());
-        popupMenu.add(searchNextItem);
-
-        JMenuItem searchPreviousItem = new JMenuItem(localization.text("menu.edit.search_previous"));
-        searchPreviousItem.addActionListener(e -> searchPreviousMatch());
-        popupMenu.add(searchPreviousItem);
-
-        JMenuItem replaceItem = new JMenuItem(localization.text("menu.edit.replace"));
-        replaceItem.addActionListener(e -> replaceInCurrentDocument());
-        popupMenu.add(replaceItem);
-
+        JPopupMenu popupMenu = TablePopupMenuBuilder.build(
+            localization,
+            hasDeletedSelection(document, view),
+            this::cutCurrentSelection,
+            this::copyCurrentSelection,
+            this::pasteCurrentSelection,
+            this::editSelectedRecord,
+            this::deleteSelectedRecords,
+            this::restoreSelectedRecords,
+            this::searchCurrentDocument,
+            this::searchNextMatch,
+            this::searchPreviousMatch,
+            this::replaceInCurrentDocument
+        );
         popupMenu.show(invoker, x, y);
     }
 

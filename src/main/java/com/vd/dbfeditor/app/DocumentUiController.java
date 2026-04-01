@@ -1,6 +1,5 @@
 package com.vd.dbfeditor.app;
 
-import com.vd.dbfeditor.dbf.DBFEngine;
 import com.vd.dbfeditor.i18n.Localization;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -131,49 +130,6 @@ final class DocumentUiController {
             fileSize = 0L;
         }
 
-        int totalRows = document.dbf.records().size();
-        int visibleRows = view.table.getRowCount();
-        int deletedRows = countDeletedRows(document.dbf);
-        String memoStatus = determineMemoStatus(document.dbf);
-        String summaryKey = visibleRows == totalRows ? "status.summary" : "status.summary.filtered";
-
-        statusBarLabel.setText(
-            localization.text(
-                summaryKey,
-                String.format("%02X", document.dbf.version()),
-                fileSize,
-                document.charset.displayName(),
-                visibleRows,
-                totalRows,
-                deletedRows,
-                memoStatus
-            )
-        );
-    }
-
-    private int countDeletedRows(DBFEngine.DBFFile dbf) {
-        int deletedRows = 0;
-        for (Boolean deletedFlag : dbf.deletedFlags()) {
-            if (Boolean.TRUE.equals(deletedFlag)) {
-                deletedRows++;
-            }
-        }
-        return deletedRows;
-    }
-
-    private String determineMemoStatus(DBFEngine.DBFFile dbf) {
-        boolean hasMemoField = false;
-        for (DBFEngine.FieldDescriptor field : dbf.fields()) {
-            if (field.type() == 'M') {
-                hasMemoField = true;
-                break;
-            }
-        }
-        if (!hasMemoField) {
-            return localization.text("status.memo.none");
-        }
-        return dbf.memoWarnings().isEmpty()
-            ? localization.text("status.memo.ok")
-            : localization.text("status.memo.warning");
+        statusBarLabel.setText(StatusBarFormatter.format(localization, document, view, fileSize));
     }
 }

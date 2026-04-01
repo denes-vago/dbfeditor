@@ -19,6 +19,7 @@ final class SearchFilterWorkflow {
     private final Preferences preferences;
     private final String findTextKey;
     private final String findCaseSensitiveKey;
+    private final String findColumnKey;
     private final String replaceTextKey;
 
     SearchFilterWorkflow(
@@ -27,6 +28,7 @@ final class SearchFilterWorkflow {
         Preferences preferences,
         String findTextKey,
         String findCaseSensitiveKey,
+        String findColumnKey,
         String replaceTextKey
     ) {
         this.owner = owner;
@@ -34,6 +36,7 @@ final class SearchFilterWorkflow {
         this.preferences = preferences;
         this.findTextKey = findTextKey;
         this.findCaseSensitiveKey = findCaseSensitiveKey;
+        this.findColumnKey = findColumnKey;
         this.replaceTextKey = replaceTextKey;
     }
 
@@ -42,7 +45,9 @@ final class SearchFilterWorkflow {
             owner,
             localization,
             preferences.get(findTextKey, ""),
-            preferences.getBoolean(findCaseSensitiveKey, false)
+            preferences.getBoolean(findCaseSensitiveKey, false),
+            buildSearchColumnOptions(document),
+            preferences.getInt(findColumnKey, -1)
         );
         if (request == null) {
             return null;
@@ -61,7 +66,8 @@ final class SearchFilterWorkflow {
 
         preferences.put(findTextKey, normalizedQuery);
         preferences.putBoolean(findCaseSensitiveKey, request.caseSensitive());
-        return findMatch(document, view, normalizedQuery, request.caseSensitive(), true);
+        preferences.putInt(findColumnKey, request.columnIndex());
+        return findMatch(document, view, normalizedQuery, request.caseSensitive(), request.columnIndex(), true);
     }
 
     MatchLocation continueSearch(DocumentModel document, DocumentView view, boolean forward) {
@@ -69,7 +75,14 @@ final class SearchFilterWorkflow {
         if (searchText.isEmpty()) {
             return searchCurrent(document, view);
         }
-        return findMatch(document, view, searchText, preferences.getBoolean(findCaseSensitiveKey, false), forward);
+        return findMatch(
+            document,
+            view,
+            searchText,
+            preferences.getBoolean(findCaseSensitiveKey, false),
+            preferences.getInt(findColumnKey, -1),
+            forward
+        );
     }
 
     ReplaceOutcome replaceInCurrentDocument(DocumentModel document, DocumentView view) {
@@ -98,6 +111,7 @@ final class SearchFilterWorkflow {
         preferences.put(findTextKey, searchText);
         preferences.put(replaceTextKey, request.replaceText());
         preferences.putBoolean(findCaseSensitiveKey, request.caseSensitive());
+        preferences.putInt(findColumnKey, -1);
 
         List<List<String>> beforeRecords = snapshotRecords(document.dbf.records());
         int replacements = replaceAllMatches(document, view, searchText, request.replaceText(), request.caseSensitive());
@@ -150,7 +164,8 @@ final class SearchFilterWorkflow {
         String filterText = document.filterText == null ? "" : document.filterText.trim();
         boolean hasTextFilter = !filterText.isEmpty();
         boolean hideDeleted = !document.showDeletedRecords;
-        if (!hasTextFilter && !hideDeleted) {
+        boolean onlyDeleted = document.showOnlyDeletedRecords;
+        if (!hasTextFilter && !hideDeleted && !onlyDeleted) {
             view.rowSorter.setRowFilter(null);
             statusUpdater.run();
             return;
@@ -160,7 +175,11 @@ final class SearchFilterWorkflow {
         view.rowSorter.setRowFilter(new RowFilter<>() {
             @Override
             public boolean include(Entry<? extends DBFTableModel, ? extends Integer> entry) {
-                if (hideDeleted && entry.getModel().isDeletedRow(entry.getIdentifier())) {
+                boolean deleted = entry.getModel().isDeletedRow(entry.getIdentifier());
+                if (onlyDeleted && !deleted) {
+                    return false;
+                }
+                if (hideDeleted && deleted) {
                     return false;
                 }
                 if (!hasTextFilter) {
@@ -186,10 +205,20 @@ final class SearchFilterWorkflow {
 
     void setShowDeletedRecords(DocumentModel document, boolean showDeletedRecords) {
         document.showDeletedRecords = showDeletedRecords;
+        if (!showDeletedRecords) {
+            document.showOnlyDeletedRecords = false;
+        }
     }
 
-    private MatchLocation findMatch(DocumentModel document, DocumentView view, String query, boolean caseSensitive, boolean forward) {
-        MatchLocation match = locateMatch(document, view, query, caseSensitive, forward);
+    void setShowOnlyDeletedRecords(DocumentModel document, boolean showOnlyDeletedRecords) {
+        document.showOnlyDeletedRecords = showOnlyDeletedRecords;
+        if (showOnlyDeletedRecords) {
+            document.showDeletedRecords = true;
+        }
+    }
+
+    private MatchLocation findMatch(DocumentModel document, DocumentView view, String query, boolean caseSensitive, int columnIndex, boolean forward) {
+        MatchLocation match = locateMatch(document, view, query, caseSensitive, columnIndex, forward);
         if (match == null) {
             JOptionPane.showMessageDialog(
                 owner,
@@ -201,7 +230,7 @@ final class SearchFilterWorkflow {
         return match;
     }
 
-    private MatchLocation locateMatch(DocumentModel document, DocumentView view, String query, boolean caseSensitive, boolean forward) {
+    private MatchLocation locateMatch(DocumentModel document, DocumentView view, String query, boolean caseSensitive, int columnIndex, boolean forward) {
         String effectiveQuery = caseSensitive ? query : query.toLowerCase();
         int rowCount = view.table.getRowCount();
         if (rowCount == 0) {
@@ -215,16 +244,18 @@ final class SearchFilterWorkflow {
                 : Math.floorMod(startRow - offset, rowCount);
             int rowIndex = view.table.convertRowIndexToModel(viewRowIndex);
             List<String> row = document.dbf.records().get(rowIndex);
+            int startColumn = columnIndex >= 0 ? columnIndex : 0;
+            int endColumn = columnIndex >= 0 ? columnIndex + 1 : row.size();
             if (forward) {
-                for (int columnIndex = 0; columnIndex < row.size(); columnIndex++) {
-                    if (matches(row.get(columnIndex), effectiveQuery, caseSensitive)) {
-                        return new MatchLocation(rowIndex, columnIndex);
+                for (int currentColumnIndex = startColumn; currentColumnIndex < endColumn; currentColumnIndex++) {
+                    if (matches(row.get(currentColumnIndex), effectiveQuery, caseSensitive)) {
+                        return new MatchLocation(rowIndex, currentColumnIndex);
                     }
                 }
             } else {
-                for (int columnIndex = row.size() - 1; columnIndex >= 0; columnIndex--) {
-                    if (matches(row.get(columnIndex), effectiveQuery, caseSensitive)) {
-                        return new MatchLocation(rowIndex, columnIndex);
+                for (int currentColumnIndex = endColumn - 1; currentColumnIndex >= startColumn; currentColumnIndex--) {
+                    if (matches(row.get(currentColumnIndex), effectiveQuery, caseSensitive)) {
+                        return new MatchLocation(rowIndex, currentColumnIndex);
                     }
                 }
             }
@@ -317,6 +348,15 @@ final class SearchFilterWorkflow {
     private String[] buildFilterColumnOptions(DocumentModel document) {
         List<String> options = new ArrayList<>();
         options.add(localization.text("dialog.filter.column_all"));
+        for (DBFEngine.FieldDescriptor field : document.dbf.fields()) {
+            options.add(field.name());
+        }
+        return options.toArray(String[]::new);
+    }
+
+    private String[] buildSearchColumnOptions(DocumentModel document) {
+        List<String> options = new ArrayList<>();
+        options.add(localization.text("dialog.search.column_all"));
         for (DBFEngine.FieldDescriptor field : document.dbf.fields()) {
             options.add(field.name());
         }

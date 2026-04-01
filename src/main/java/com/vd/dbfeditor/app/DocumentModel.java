@@ -19,6 +19,7 @@ final class DocumentModel {
     boolean filterCaseSensitive;
     int filterColumnIndex = -1;
     boolean showDeletedRecords;
+    boolean showOnlyDeletedRecords;
 
     DocumentModel(String displayName, Path path, Charset charset, DBFEngine.DBFFile dbf, boolean modified) {
         this.displayName = displayName;

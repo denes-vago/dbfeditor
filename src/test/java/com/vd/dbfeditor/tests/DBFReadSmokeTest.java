@@ -1,45 +1,38 @@
 package com.vd.dbfeditor.tests;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.fail;
+
 import com.vd.dbfeditor.dbf.DBFEngine;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.jupiter.api.Test;
 
-public class DBFReadSmokeTest {
-    public static void main(String[] args) {
-        if (args.length < 1 || args.length > 2) {
-            printUsage();
-            System.exit(1);
-        }
+class DBFReadSmokeTest {
 
-        Charset charset = DBFEngine.DEFAULT_CHARSET;
-        if (args.length == 2) {
-            try {
-                charset = Charset.forName(args[1]);
-            } catch (Exception e) {
-                System.err.println("Ismeretlen karakterkódolás: " + args[1]);
-                System.exit(1);
+    @Test
+    void allDbfFilesInProjectRootAreReadable() throws Exception {
+        List<Path> dbfFiles = new ArrayList<>();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(Path.of("."), "*.DBF")) {
+            for (Path path : stream) {
+                dbfFiles.add(path);
             }
         }
 
-        Path dbfPath = Path.of(args[0]);
-        if (!Files.isRegularFile(dbfPath)) {
-            System.err.println("A fájl nem található: " + dbfPath);
-            System.exit(1);
-        }
+        assertFalse(dbfFiles.isEmpty(), "No DBF file was found in the folder.");
 
-        try {
-            DBFEngine.read(dbfPath, charset);
-        } catch (IOException e) {
-            System.err.println("Hiba a fájl olvasása közben: " + e.getMessage());
-            System.exit(1);
+        Charset charset = DBFEngine.DEFAULT_CHARSET;
+        for (Path dbfPath : dbfFiles) {
+            try {
+                DBFEngine.read(dbfPath, charset);
+            } catch (IOException e) {
+                fail("Failed to read " + dbfPath.getFileName() + ": " + e.getMessage());
+            }
         }
-    }
-
-    private static void printUsage() {
-        System.out.println("Használat: java -cp target/classes:target/test-classes com.vd.dbfeditor.tests.DBFReadSmokeTest <fájl.dbf> [karakterkódolás]");
-        System.out.println("Példa:    java -cp target/classes:target/test-classes com.vd.dbfeditor.tests.DBFReadSmokeTest ugyfelek.dbf IBM852");
-        System.out.println("Alapértelmezett karakterkódolás: " + DBFEngine.DEFAULT_CHARSET.displayName());
     }
 }

@@ -5,6 +5,7 @@ import com.vd.dbfeditor.ui.TextEditSupport;
 import java.awt.BorderLayout;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import javax.swing.JComboBox;
 import javax.swing.JCheckBox;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
@@ -18,18 +19,38 @@ public final class SearchDialog {
     private SearchDialog() {
     }
 
-    public static SearchRequest show(JFrame owner, Localization localization, String initialText, boolean initialCaseSensitive) {
+    public static SearchRequest show(
+        JFrame owner,
+        Localization localization,
+        String initialText,
+        boolean initialCaseSensitive,
+        String[] columnOptions,
+        int initialColumnIndex
+    ) {
         JTextField searchField = new JTextField(initialText, 24);
         TextEditSupport.installUndoSupport(searchField);
+        JComboBox<String> columnComboBox = new JComboBox<>(columnOptions);
+        columnComboBox.setSelectedIndex(Math.max(0, Math.min(initialColumnIndex + 1, columnOptions.length - 1)));
         JCheckBox caseSensitiveCheckBox = new JCheckBox(
             localization.text("dialog.search.case_sensitive"),
             initialCaseSensitive
         );
 
         JPanel searchPanel = new JPanel(new BorderLayout(0, 8));
-        searchPanel.add(new JLabel(localization.text("dialog.search.message")), BorderLayout.NORTH);
-        searchPanel.add(searchField, BorderLayout.CENTER);
-        searchPanel.add(caseSensitiveCheckBox, BorderLayout.SOUTH);
+        JPanel topPanel = new JPanel(new BorderLayout(0, 8));
+        topPanel.add(new JLabel(localization.text("dialog.search.message")), BorderLayout.NORTH);
+        topPanel.add(searchField, BorderLayout.CENTER);
+
+        JPanel optionsPanel = new JPanel(new BorderLayout(0, 8));
+        optionsPanel.add(new JLabel(localization.text("dialog.search.column")), BorderLayout.NORTH);
+        optionsPanel.add(columnComboBox, BorderLayout.CENTER);
+
+        JPanel bottomPanel = new JPanel(new BorderLayout(0, 8));
+        bottomPanel.add(optionsPanel, BorderLayout.NORTH);
+        bottomPanel.add(caseSensitiveCheckBox, BorderLayout.SOUTH);
+
+        searchPanel.add(topPanel, BorderLayout.NORTH);
+        searchPanel.add(bottomPanel, BorderLayout.CENTER);
 
         JOptionPane optionPane = new JOptionPane(
             searchPanel,
@@ -62,9 +83,9 @@ public final class SearchDialog {
             return null;
         }
 
-        return new SearchRequest(searchField.getText().trim(), caseSensitiveCheckBox.isSelected());
+        return new SearchRequest(searchField.getText().trim(), caseSensitiveCheckBox.isSelected(), columnComboBox.getSelectedIndex() - 1);
     }
 
-    public record SearchRequest(String text, boolean caseSensitive) {
+    public record SearchRequest(String text, boolean caseSensitive, int columnIndex) {
     }
 }

@@ -32,7 +32,6 @@ public final class EditorMenuBar {
     private final JMenu languageMenu;
     private final JMenu lookAndFeelMenu;
     private final JMenu exportMenu;
-    private final JMenu exportSelectedMenu;
 
     private final LocalizedMenuAction newDatabaseAction;
     private final LocalizedMenuAction openAction;
@@ -52,15 +51,13 @@ public final class EditorMenuBar {
     private final ExportMenuAction exportCsvAction;
     private final ExportMenuAction exportXlsxAction;
     private final ExportMenuAction exportSqlAction;
-    private final ExportMenuAction exportSelectedCsvAction;
-    private final ExportMenuAction exportSelectedXlsxAction;
-    private final ExportMenuAction exportSelectedSqlAction;
     private final LocalizedMenuAction addRecordAction;
     private final LocalizedMenuAction editRecordAction;
     private final LocalizedMenuAction deleteRecordAction;
     private final LocalizedMenuAction restoreRecordAction;
     private final LocalizedMenuAction purgeDeletedRecordsAction;
     private final JCheckBoxMenuItem showDeletedRecordsMenuItem;
+    private final JCheckBoxMenuItem showOnlyDeletedRecordsMenuItem;
     private final LocalizedMenuAction searchAction;
     private final LocalizedMenuAction searchNextAction;
     private final LocalizedMenuAction searchPreviousAction;
@@ -89,13 +86,13 @@ public final class EditorMenuBar {
         Runnable saveAsHandler,
         Runnable exitHandler,
         Consumer<ExportFormat> exportHandler,
-        Consumer<ExportFormat> exportSelectedHandler,
         Runnable addRecordHandler,
         Runnable editRecordHandler,
         Runnable deleteRecordHandler,
         Runnable restoreRecordHandler,
         Runnable purgeDeletedRecordsHandler,
         Consumer<Boolean> showDeletedHandler,
+        Consumer<Boolean> showOnlyDeletedHandler,
         Runnable searchHandler,
         Runnable searchNextHandler,
         Runnable searchPreviousHandler,
@@ -115,7 +112,6 @@ public final class EditorMenuBar {
         languageMenu = new JMenu();
         lookAndFeelMenu = new JMenu();
         exportMenu = new JMenu();
-        exportSelectedMenu = new JMenu();
 
         newDatabaseAction = new LocalizedMenuAction("menu.file.new", newDatabaseHandler);
         JMenuItem newDatabaseMenuItem = new JMenuItem(newDatabaseAction);
@@ -192,18 +188,6 @@ public final class EditorMenuBar {
         JMenuItem exportSqlMenuItem = new JMenuItem(exportSqlAction);
         exportSqlAction.setEnabled(false);
 
-        exportSelectedCsvAction = new ExportMenuAction("menu.file.export_selected.csv", ExportFormat.CSV, exportSelectedHandler);
-        JMenuItem exportSelectedCsvMenuItem = new JMenuItem(exportSelectedCsvAction);
-        exportSelectedCsvAction.setEnabled(false);
-
-        exportSelectedXlsxAction = new ExportMenuAction("menu.file.export_selected.xlsx", ExportFormat.XLSX, exportSelectedHandler);
-        JMenuItem exportSelectedXlsxMenuItem = new JMenuItem(exportSelectedXlsxAction);
-        exportSelectedXlsxAction.setEnabled(false);
-
-        exportSelectedSqlAction = new ExportMenuAction("menu.file.export_selected.sql", ExportFormat.SQL, exportSelectedHandler);
-        JMenuItem exportSelectedSqlMenuItem = new JMenuItem(exportSelectedSqlAction);
-        exportSelectedSqlAction.setEnabled(false);
-
         addRecordAction = new LocalizedMenuAction("menu.database.add_record", addRecordHandler);
         JMenuItem addRecordMenuItem = new JMenuItem(addRecordAction);
         addRecordMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N, shortcutMask | InputEvent.SHIFT_DOWN_MASK));
@@ -230,6 +214,10 @@ public final class EditorMenuBar {
         showDeletedRecordsMenuItem = new JCheckBoxMenuItem();
         showDeletedRecordsMenuItem.addActionListener(e -> showDeletedHandler.accept(showDeletedRecordsMenuItem.isSelected()));
         showDeletedRecordsMenuItem.setEnabled(false);
+
+        showOnlyDeletedRecordsMenuItem = new JCheckBoxMenuItem();
+        showOnlyDeletedRecordsMenuItem.addActionListener(e -> showOnlyDeletedHandler.accept(showOnlyDeletedRecordsMenuItem.isSelected()));
+        showOnlyDeletedRecordsMenuItem.setEnabled(false);
 
         searchAction = new LocalizedMenuAction("menu.edit.search", searchHandler);
         JMenuItem searchMenuItem = new JMenuItem(searchAction);
@@ -290,12 +278,6 @@ public final class EditorMenuBar {
         exportMenu.add(exportCsvMenuItem);
         exportMenu.add(exportXlsxMenuItem);
         exportMenu.add(exportSqlMenuItem);
-        exportMenu.addSeparator();
-        exportMenu.add(exportSelectedMenu);
-
-        exportSelectedMenu.add(exportSelectedCsvMenuItem);
-        exportSelectedMenu.add(exportSelectedXlsxMenuItem);
-        exportSelectedMenu.add(exportSelectedSqlMenuItem);
 
         databaseMenu.add(addRecordMenuItem);
         databaseMenu.add(editRecordMenuItem);
@@ -303,6 +285,7 @@ public final class EditorMenuBar {
         databaseMenu.add(restoreRecordMenuItem);
         databaseMenu.add(purgeDeletedRecordsMenuItem);
         databaseMenu.add(showDeletedRecordsMenuItem);
+        databaseMenu.add(showOnlyDeletedRecordsMenuItem);
         databaseMenu.addSeparator();
         databaseMenu.add(charsetMenu);
         databaseMenu.addSeparator();
@@ -335,9 +318,6 @@ public final class EditorMenuBar {
             exportCsvAction,
             exportXlsxAction,
             exportSqlAction,
-            exportSelectedCsvAction,
-            exportSelectedXlsxAction,
-            exportSelectedSqlAction,
             addRecordAction,
             editRecordAction,
             deleteRecordAction,
@@ -363,7 +343,6 @@ public final class EditorMenuBar {
         languageMenu.setText(localization.text("menu.settings.language"));
         lookAndFeelMenu.setText(localization.text("menu.settings.look_and_feel"));
         exportMenu.setText(localization.text("menu.file.export"));
-        exportSelectedMenu.setText(localization.text("menu.file.export_selected"));
         newDatabaseAction.updateText(localization::text);
         openAction.updateText(localization::text);
         closeAction.updateText(localization::text);
@@ -382,15 +361,13 @@ public final class EditorMenuBar {
         exportCsvAction.updateText(localization::text);
         exportXlsxAction.updateText(localization::text);
         exportSqlAction.updateText(localization::text);
-        exportSelectedCsvAction.updateText(localization::text);
-        exportSelectedXlsxAction.updateText(localization::text);
-        exportSelectedSqlAction.updateText(localization::text);
         addRecordAction.updateText(localization::text);
         editRecordAction.updateText(localization::text);
         deleteRecordAction.updateText(localization::text);
         restoreRecordAction.updateText(localization::text);
         purgeDeletedRecordsAction.updateText(localization::text);
         showDeletedRecordsMenuItem.setText(localization.text("menu.database.show_deleted"));
+        showOnlyDeletedRecordsMenuItem.setText(localization.text("menu.database.show_only_deleted"));
         searchAction.updateText(localization::text);
         searchNextAction.updateText(localization::text);
         searchPreviousAction.updateText(localization::text);
@@ -431,8 +408,13 @@ public final class EditorMenuBar {
         showDeletedRecordsMenuItem.setSelected(selected);
     }
 
+    public void syncShowOnlyDeletedMenu(boolean selected) {
+        showOnlyDeletedRecordsMenuItem.setSelected(selected);
+    }
+
     public void setShowDeletedMenuEnabled(boolean enabled) {
         showDeletedRecordsMenuItem.setEnabled(enabled);
+        showOnlyDeletedRecordsMenuItem.setEnabled(enabled);
     }
 
     public void rebuildLanguageMenu(Localization localization, Consumer<String> switchHandler) {
