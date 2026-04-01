@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 class SearchFilterWorkflowUnitTest {
 
     @Test
+    // Verifies that find-next follows the visible order of a sorted view.
     void continueSearchFollowsSortedViewOrder() throws Exception {
         Object document = createSearchDocument();
         Object view = createSortedView(document);
@@ -54,6 +55,7 @@ class SearchFilterWorkflowUnitTest {
     }
 
     @Test
+    // Verifies that find-previous also walks backward in visible view order.
     void previousSearchFollowsSortedViewOrder() throws Exception {
         Object document = createSearchDocument();
         Object view = createSortedView(document);
@@ -83,6 +85,7 @@ class SearchFilterWorkflowUnitTest {
     }
 
     @Test
+    // Verifies that column filtering targets the selected column and hides deleted rows.
     void columnFilterTargetsSelectedColumnAndHidesDeletedRows() throws Exception {
         Object document = createFilterDocument();
         setFieldValue(document, "filterText", "target");
@@ -113,6 +116,7 @@ class SearchFilterWorkflowUnitTest {
     }
 
     @Test
+    // Verifies that column-restricted search does not match text in other columns.
     void continueSearchCanBeRestrictedToOneColumn() throws Exception {
         Object document = createSearchDocument();
         Object view = createSortedView(document);

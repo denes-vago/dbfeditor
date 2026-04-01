@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 class DBFReadSmokeTest {
 
     @Test
+    // Quick regression check: every DBF file in the project root can be opened.
     void allDbfFilesInProjectRootAreReadable() throws Exception {
         List<Path> dbfFiles = new ArrayList<>();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(Path.of("."), "*.DBF")) {

@@ -18,12 +18,14 @@ import org.junit.jupiter.api.Test;
 class DBFEngineUnitTest {
 
     @Test
+    // Verifies that a well-formed character field definition is accepted.
     void validateFieldDefinitionAcceptsValidCharacterField() {
         DBFEngine.FieldDescriptor field = new DBFEngine.FieldDescriptor("NAME", 'C', 20, 0);
         assertNull(DBFEngine.validateFieldDefinition(field));
     }
 
     @Test
+    // Verifies that a field name longer than the DBF limit is rejected.
     void validateFieldDefinitionRejectsTooLongFieldName() {
         DBFEngine.FieldDescriptor field = new DBFEngine.FieldDescriptor("TOO_LONG_NAME", 'C', 20, 0);
         String error = DBFEngine.validateFieldDefinition(field);
@@ -32,6 +34,7 @@ class DBFEngineUnitTest {
     }
 
     @Test
+    // Verifies that supported date input formats are accepted.
     void validateValueAcceptsValidDateFormats() {
         DBFEngine.FieldDescriptor field = new DBFEngine.FieldDescriptor("DATEFLD", 'D', 8, 0);
         assertNull(DBFEngine.validateValue(field, "2024-03-15", DBFEngine.DEFAULT_CHARSET));
@@ -39,6 +42,7 @@ class DBFEngineUnitTest {
     }
 
     @Test
+    // Verifies that calendar-invalid dates are rejected by validation.
     void validateValueRejectsInvalidCalendarDate() {
         DBFEngine.FieldDescriptor field = new DBFEngine.FieldDescriptor("DATEFLD", 'D', 8, 0);
         String error = DBFEngine.validateValue(field, "2024-02-30", DBFEngine.DEFAULT_CHARSET);
@@ -47,6 +51,7 @@ class DBFEngineUnitTest {
     }
 
     @Test
+    // Verifies that too many fractional digits are rejected for numeric fields.
     void validateValueRejectsTooManyDecimalPlaces() {
         DBFEngine.FieldDescriptor field = new DBFEngine.FieldDescriptor("AMOUNT", 'N', 8, 2);
         String error = DBFEngine.validateValue(field, "12.345", DBFEngine.DEFAULT_CHARSET);
@@ -55,6 +60,7 @@ class DBFEngineUnitTest {
     }
 
     @Test
+    // Verifies that logical fields accept multiple user-friendly aliases.
     void validateValueAcceptsLogicalAliases() {
         DBFEngine.FieldDescriptor field = new DBFEngine.FieldDescriptor("ACTIVE", 'L', 1, 0);
         assertNull(DBFEngine.validateValue(field, "true", DBFEngine.DEFAULT_CHARSET));
@@ -62,6 +68,7 @@ class DBFEngineUnitTest {
     }
 
     @Test
+    // Round-trip test: schema and stored values survive a write and read cycle.
     void writeReadRoundTripPreservesSchemaAndValues() throws Exception {
         Charset charset = Charset.forName("IBM852");
         List<DBFEngine.FieldDescriptor> fields = List.of(
@@ -106,6 +113,7 @@ class DBFEngineUnitTest {
     }
 
     @Test
+    // Verifies that deleted-record flags survive writing and reading.
     void deletedFlagsRoundTripPreservesDeletedRecords() throws Exception {
         Charset charset = Charset.forName("IBM852");
         List<DBFEngine.FieldDescriptor> fields = List.of(
@@ -142,6 +150,7 @@ class DBFEngineUnitTest {
     }
 
     @Test
+    // Verifies that long multiline memo content survives DBT-backed persistence.
     void memoRoundTripPreservesLongText() throws Exception {
         Charset charset = Charset.forName("IBM852");
         List<DBFEngine.FieldDescriptor> fields = List.of(
@@ -181,6 +190,7 @@ class DBFEngineUnitTest {
     }
 
     @Test
+    // Verifies that a missing DBT file produces a warning instead of failing silently.
     void missingMemoFileProducesWarning() throws Exception {
         Charset charset = Charset.forName("IBM852");
         List<DBFEngine.FieldDescriptor> fields = List.of(

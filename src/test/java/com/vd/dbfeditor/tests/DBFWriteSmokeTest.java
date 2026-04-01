@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 class DBFWriteSmokeTest {
 
     @Test
+    // Quick write smoke test: a simple edit survives saving and reloading.
     void writeSmokeTestPersistsSimpleEdit() throws Exception {
         Charset charset = Charset.forName("ISO-8859-1");
         Path source = Path.of("IR_SZAM.DBF");
