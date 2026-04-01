@@ -112,6 +112,7 @@ public final class EditorMenuBar {
         languageMenu = new JMenu();
         lookAndFeelMenu = new JMenu();
         exportMenu = new JMenu();
+        exportMenu.setEnabled(false);
 
         newDatabaseAction = new LocalizedMenuAction("menu.file.new", newDatabaseHandler);
         JMenuItem newDatabaseMenuItem = new JMenuItem(newDatabaseAction);
@@ -137,10 +138,12 @@ public final class EditorMenuBar {
         undoAction = new LocalizedMenuAction("menu.edit.undo", undoHandler);
         JMenuItem undoMenuItem = new JMenuItem(undoAction);
         undoMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Z, shortcutMask));
+        undoAction.setEnabled(false);
 
         redoAction = new LocalizedMenuAction("menu.edit.redo", redoHandler);
         JMenuItem redoMenuItem = new JMenuItem(redoAction);
         redoMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Z, shortcutMask | InputEvent.SHIFT_DOWN_MASK));
+        redoAction.setEnabled(false);
 
         filterAction = new LocalizedMenuAction("menu.edit.filter", filterHandler);
         JMenuItem filterMenuItem = new JMenuItem(filterAction);
@@ -153,14 +156,17 @@ public final class EditorMenuBar {
         cutAction = new LocalizedMenuAction("menu.edit.cut", cutHandler);
         JMenuItem cutMenuItem = new JMenuItem(cutAction);
         cutMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, shortcutMask));
+        cutAction.setEnabled(false);
 
         copyAction = new LocalizedMenuAction("menu.edit.copy", copyHandler);
         JMenuItem copyMenuItem = new JMenuItem(copyAction);
         copyMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, shortcutMask));
+        copyAction.setEnabled(false);
 
         pasteAction = new LocalizedMenuAction("menu.edit.paste", pasteHandler);
         JMenuItem pasteMenuItem = new JMenuItem(pasteAction);
         pasteMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_V, shortcutMask));
+        pasteAction.setEnabled(false);
 
         saveAction = new LocalizedMenuAction("menu.file.save", saveHandler);
         JMenuItem saveMenuItem = new JMenuItem(saveAction);
@@ -313,6 +319,11 @@ public final class EditorMenuBar {
             closeAction,
             closeOthersAction,
             closeAllAction,
+            undoAction,
+            redoAction,
+            cutAction,
+            copyAction,
+            pasteAction,
             saveAction,
             saveAsAction,
             exportCsvAction,
@@ -402,6 +413,10 @@ public final class EditorMenuBar {
         for (AbstractButton item : charsetMenuItems.values()) {
             item.setEnabled(enabled);
         }
+    }
+
+    public void setExportMenuEnabled(boolean enabled) {
+        exportMenu.setEnabled(enabled);
     }
 
     public void syncShowDeletedMenu(boolean selected) {

@@ -21,6 +21,7 @@ final class DocumentUiController {
     private final Supplier<Charset> fallbackCharsetSupplier;
     private final Action openAction;
     private final List<Action> fileBoundActions;
+    private final Consumer<Boolean> exportMenuEnabledSetter;
     private final Consumer<Boolean> charsetMenuEnabledSetter;
     private final Consumer<Boolean> showDeletedMenuEnabledSetter;
     private final Consumer<Charset> charsetSelectionSyncer;
@@ -35,6 +36,7 @@ final class DocumentUiController {
         Supplier<Charset> fallbackCharsetSupplier,
         Action openAction,
         List<Action> fileBoundActions,
+        Consumer<Boolean> exportMenuEnabledSetter,
         Consumer<Boolean> charsetMenuEnabledSetter,
         Consumer<Boolean> showDeletedMenuEnabledSetter,
         Consumer<Charset> charsetSelectionSyncer
@@ -48,6 +50,7 @@ final class DocumentUiController {
         this.fallbackCharsetSupplier = fallbackCharsetSupplier;
         this.openAction = openAction;
         this.fileBoundActions = fileBoundActions;
+        this.exportMenuEnabledSetter = exportMenuEnabledSetter;
         this.charsetMenuEnabledSetter = charsetMenuEnabledSetter;
         this.showDeletedMenuEnabledSetter = showDeletedMenuEnabledSetter;
         this.charsetSelectionSyncer = charsetSelectionSyncer;
@@ -70,6 +73,7 @@ final class DocumentUiController {
     void applyBusyState(boolean busyState, String message) {
         boolean hasFile = currentDocumentSupplier.get() != null;
         openAction.setEnabled(!busyState);
+        exportMenuEnabledSetter.accept(!busyState && hasFile);
         charsetMenuEnabledSetter.accept(!busyState);
         showDeletedMenuEnabledSetter.accept(!busyState && hasFile);
         for (Action action : fileBoundActions) {

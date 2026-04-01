@@ -148,6 +148,7 @@ public class DBFEditorUI extends JFrame {
             () -> pendingCharset,
             editorMenuBar.openAction(),
             editorMenuBar.fileBoundActions(),
+            editorMenuBar::setExportMenuEnabled,
             editorMenuBar::setCharsetMenuEnabled,
             editorMenuBar::setShowDeletedMenuEnabled,
             charset -> editorMenuBar.syncCharsetMenu(CharsetRegistry.displayName(charset))
@@ -252,6 +253,26 @@ public class DBFEditorUI extends JFrame {
         UIManager.put("OptionPane.cancelButtonText", localization.text("button.cancel"));
         UIManager.put("OptionPane.yesButtonText", localization.text("button.yes"));
         UIManager.put("OptionPane.noButtonText", localization.text("button.no"));
+        UIManager.put("FileChooser.openButtonText", localization.text("filechooser.open"));
+        UIManager.put("FileChooser.openButtonToolTipText", localization.text("filechooser.open"));
+        UIManager.put("FileChooser.saveButtonText", localization.text("filechooser.save"));
+        UIManager.put("FileChooser.saveButtonToolTipText", localization.text("filechooser.save"));
+        UIManager.put("FileChooser.cancelButtonText", localization.text("button.cancel"));
+        UIManager.put("FileChooser.cancelButtonToolTipText", localization.text("button.cancel"));
+        UIManager.put("FileChooser.lookInLabelText", localization.text("filechooser.look_in"));
+        UIManager.put("FileChooser.saveInLabelText", localization.text("filechooser.save_in"));
+        UIManager.put("FileChooser.fileNameLabelText", localization.text("filechooser.file_name"));
+        UIManager.put("FileChooser.filesOfTypeLabelText", localization.text("filechooser.files_of_type"));
+        UIManager.put("FileChooser.upFolderToolTipText", localization.text("filechooser.up_folder"));
+        UIManager.put("FileChooser.upFolderAccessibleName", localization.text("filechooser.up_folder"));
+        UIManager.put("FileChooser.homeFolderToolTipText", localization.text("filechooser.home_folder"));
+        UIManager.put("FileChooser.homeFolderAccessibleName", localization.text("filechooser.home_folder"));
+        UIManager.put("FileChooser.newFolderToolTipText", localization.text("filechooser.new_folder"));
+        UIManager.put("FileChooser.newFolderAccessibleName", localization.text("filechooser.new_folder"));
+        UIManager.put("FileChooser.listViewButtonToolTipText", localization.text("filechooser.list_view"));
+        UIManager.put("FileChooser.listViewButtonAccessibleName", localization.text("filechooser.list_view"));
+        UIManager.put("FileChooser.detailsViewButtonToolTipText", localization.text("filechooser.details_view"));
+        UIManager.put("FileChooser.detailsViewButtonAccessibleName", localization.text("filechooser.details_view"));
     }
 
     private void openDbfFile() {
@@ -261,6 +282,7 @@ public class DBFEditorUI extends JFrame {
 
         JFileChooser chooser = fileChooserFactory.createDbfChooser(localization.text("dialog.open.title"), true);
         int result = chooser.showOpenDialog(this);
+        fileChooserFactory.rememberDirectory(chooser);
         if (result != JFileChooser.APPROVE_OPTION) {
             return;
         }

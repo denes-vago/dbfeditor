@@ -41,6 +41,7 @@ final class SaveExportWorkflow {
         }
 
         int result = chooser.showSaveDialog(owner);
+        fileChooserFactory.rememberDirectory(chooser);
         if (result != JFileChooser.APPROVE_OPTION) {
             return null;
         }
@@ -84,6 +85,7 @@ final class SaveExportWorkflow {
         chooser.setSelectedFile(suggestedPath.toFile());
 
         int result = chooser.showSaveDialog(owner);
+        fileChooserFactory.rememberDirectory(chooser);
         if (result != JFileChooser.APPROVE_OPTION) {
             return null;
         }

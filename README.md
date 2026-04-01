@@ -21,6 +21,8 @@ The project currently focuses on:
 - showing only deleted records when needed
 - displaying memo diagnostics when companion DBT data is missing or damaged
 - showing file version, size, encoding, deleted record count, and memo status in the status bar
+- remembering the last used directory in file chooser dialogs
+- localizing file chooser labels and buttons
 - localized UI strings
 
 ## Project Structure
@@ -92,7 +94,6 @@ The script:
 
 - Open multiple DBF files at the same time in a single window.
 - Start with one or more DBF files passed on the command line.
-- Right-click a tab to access `Close`, `Close others`, and `Close all`.
 - The `File` menu also provides `Close`, `Close others`, and `Close all`.
 - Tabs stay in a single scrollable row when there are many open files.
 
@@ -130,7 +131,7 @@ Compile test sources first:
 mvn -DskipTests test-compile
 ```
 
-Run the JUnit 5 unit tests:
+Run the unit tests:
 
 ```bash
 mvn -Dtest=DBFEngineUnitTest,SearchFilterWorkflowUnitTest test
