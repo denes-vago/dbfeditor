@@ -19,7 +19,7 @@ for arg in "$@"; do
 done
 
 cd "$PROJECT_DIR"
-VERSION=$(sed -n 's/.*VERSION = "\(.*\)".*/\1/p' src/com/vd/dbfeditor/app/AppVersion.java)
+VERSION=$(sed -n 's/.*VERSION = "\(.*\)".*/\1/p' src/main/java/com/vd/dbfeditor/app/AppVersion.java)
 MAVEN_CMD=()
 
 if [[ -x "$PROJECT_DIR/mvnw" ]]; then
